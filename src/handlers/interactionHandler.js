@@ -28,7 +28,10 @@ export async function handleButtonInteraction(interaction) {
       await interaction.update(ButtonManager.createPermissionsMenu(lang));
     }
     else if (customId === 'menu_help') {
-      await interaction.reply({ content: 'قريباً...', ephemeral: true });
+      await interaction.update(ButtonManager.createHelpMenu(lang));
+    }
+    else if (customId === 'menu_stats') {
+      await interaction.update(ButtonManager.createStatsMenu(lang));
     }
 
     // Back buttons
@@ -55,6 +58,39 @@ export async function handleButtonInteraction(interaction) {
     else if (customId.startsWith('booking_view_')) {
       const type = customId.replace('booking_view_', '');
       await showBookingsList(interaction, type, lang);
+    }
+
+    // Delete booking
+    else if (customId.startsWith('booking_delete_')) {
+      const type = customId.replace('booking_delete_', '');
+      await showDeleteBookingMenu(interaction, type, lang, userId);
+    }
+
+    // Confirm delete booking
+    else if (customId.startsWith('confirm_delete_')) {
+      const [_, __, type, bookingId] = customId.split('_');
+      const booking = db.getBookings(type).find(b => b.id === bookingId);
+      
+      if (!booking) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ الحجز غير موجود' : '❌ Booking not found', ephemeral: true });
+        return;
+      }
+
+      // Check if user owns the booking or is admin
+      if (booking.userId !== userId && !db.isAdmin(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية لحذف هذا الحجز' : '❌ No permission to delete this booking', ephemeral: true });
+        return;
+      }
+
+      db.removeBooking(type, bookingId);
+      await interaction.update(ButtonManager.createBookingTypeMenu(type, lang));
+      await interaction.followUp({ content: t(lang, 'bookings.removed'), ephemeral: true });
+    }
+
+    // Cancel delete
+    else if (customId.startsWith('cancel_delete_')) {
+      const type = customId.split('_')[2];
+      await interaction.update(ButtonManager.createBookingTypeMenu(type, lang));
     }
 
     // Settings
@@ -84,6 +120,23 @@ export async function handleButtonInteraction(interaction) {
     }
     else if (customId === 'alliance_info') {
       await interaction.update(ButtonManager.createAllianceMenu(lang));
+    }
+    else if (customId === 'alliance_manage') {
+      // Check permissions
+      if (!db.hasAlliancePermission(userId) && !db.isAdmin(userId)) {
+        await interaction.reply({ content: t(lang, 'alliance.noPermission'), ephemeral: true });
+        return;
+      }
+      await showAllianceManageMenu(interaction, lang);
+    }
+
+    // Permissions management
+    else if (customId === 'perm_manage_admins') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: t(lang, 'permissions.ownerOnly'), ephemeral: true });
+        return;
+      }
+      await showAdminManageMenu(interaction, lang);
     }
 
   } catch (error) {
@@ -184,11 +237,118 @@ async function showAllianceMembers(interaction, lang) {
   let message = `**👥 ${lang === 'ar' ? 'أعضاء التحالف' : 'Alliance Members'}**\n\n`;
   
   alliance.members.forEach((member, index) => {
-    message += `${index + 1}. <@${member.id}> - ${member.rank}\n`;
+    const joinDate = new Date(member.joinedAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US');
+    message += `${index + 1}. <@${member.id}> - **${member.rank}** (${lang === 'ar' ? 'انضم' : 'Joined'}: ${joinDate})\n`;
   });
 
   await interaction.reply({ 
     content: message, 
     ephemeral: true 
+  });
+}
+
+async function showDeleteBookingMenu(interaction, type, lang, userId) {
+  const bookings = db.getBookings(type);
+  const userBookings = bookings.filter(b => b.userId === userId || db.isAdmin(userId));
+  
+  if (userBookings.length === 0) {
+    await interaction.reply({
+      content: lang === 'ar' ? '❌ ليس لديك حجوزات لحذفها' : '❌ You have no bookings to delete',
+      ephemeral: true
+    });
+    return;
+  }
+
+  const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = await import('discord.js');
+  
+  let description = lang === 'ar' ? 'اختر الحجز الذي تريد حذفه:\n\n' : 'Select the booking to delete:\n\n';
+  
+  userBookings.forEach((booking, index) => {
+    const start = new Date(booking.startDate).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US');
+    const end = new Date(booking.endDate).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US');
+    description += `**${index + 1}.** ${start} - ${end}\n`;
+    if (booking.notes) {
+      description += `   📝 ${booking.notes}\n`;
+    }
+  });
+
+  const embed = new EmbedBuilder()
+    .setColor('#ff0000')
+    .setTitle(lang === 'ar' ? '🗑️ حذف حجز' : '🗑️ Delete Booking')
+    .setDescription(description)
+    .setTimestamp();
+
+  const rows = [];
+  const buttons = [];
+  
+  userBookings.forEach((booking, index) => {
+    buttons.push(
+      new ButtonBuilder()
+        .setCustomId(`confirm_delete_${type}_${booking.id}`)
+        .setLabel(`${index + 1}`)
+        .setStyle(ButtonStyle.Danger)
+    );
+    
+    if ((index + 1) % 5 === 0 || index === userBookings.length - 1) {
+      rows.push(new ActionRowBuilder().addComponents(buttons.splice(0)));
+    }
+  });
+
+  rows.push(
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`cancel_delete_${type}`)
+        .setLabel(lang === 'ar' ? '❌ إلغاء' : '❌ Cancel')
+        .setStyle(ButtonStyle.Secondary)
+    )
+  );
+
+  await interaction.reply({
+    embeds: [embed],
+    components: rows,
+    ephemeral: true
+  });
+}
+
+async function showAllianceManageMenu(interaction, lang) {
+  await interaction.reply({
+    content: lang === 'ar' 
+      ? '⚙️ **إدارة التحالف**\n\n' +
+        'استخدم الأوامر التالية لإدارة الأعضاء:\n' +
+        '• `/addmember @user rank` - إضافة عضو\n' +
+        '• `/removemember @user` - إزالة عضو\n' +
+        '• `/changerank @user rank` - تغيير الرتبة\n\n' +
+        '**الرتب المتاحة:** R5, R4, R3, R2, R1'
+      : '⚙️ **Alliance Management**\n\n' +
+        'Use these commands to manage members:\n' +
+        '• `/addmember @user rank` - Add member\n' +
+        '• `/removemember @user` - Remove member\n' +
+        '• `/changerank @user rank` - Change rank\n\n' +
+        '**Available ranks:** R5, R4, R3, R2, R1',
+    ephemeral: true
+  });
+}
+
+async function showAdminManageMenu(interaction, lang) {
+  const perms = db.getPermissions();
+  
+  let adminList = lang === 'ar' ? 'لا يوجد مشرفين حالياً' : 'No admins currently';
+  if (perms.admins.length > 0) {
+    adminList = perms.admins.map((id, i) => `${i + 1}. <@${id}>`).join('\n');
+  }
+
+  await interaction.reply({
+    content: lang === 'ar'
+      ? `👮 **إدارة المشرفين**\n\n` +
+        `**المشرفين الحاليين:**\n${adminList}\n\n` +
+        `**الأوامر المتاحة:**\n` +
+        `• \`/addadmin @user\` - إضافة مشرف\n` +
+        `• \`/removeadmin @user\` - حذف مشرف`
+      : `👮 **Admin Management**\n\n` +
+        `**Current Admins:**\n${adminList}\n\n` +
+        `**Available Commands:**\n` +
+        `• \`/addadmin @user\` - Add admin\n` +
+        `• \`/removeadmin @user\` - Remove admin`,
+    ephemeral: true
   });
 }

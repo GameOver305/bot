@@ -33,6 +33,10 @@ export class ButtonManager {
           .setLabel(t(lang, 'mainMenu.permissions'))
           .setStyle(ButtonStyle.Danger),
         new ButtonBuilder()
+          .setCustomId('menu_stats')
+          .setLabel(lang === 'ar' ? '📊 الإحصائيات' : '📊 Statistics')
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
           .setCustomId('menu_help')
           .setLabel(t(lang, 'mainMenu.help'))
           .setStyle(ButtonStyle.Secondary)
@@ -107,7 +111,11 @@ export class ButtonManager {
         new ButtonBuilder()
           .setCustomId(`booking_view_${type}`)
           .setLabel(t(lang, 'bookings.view'))
-          .setStyle(ButtonStyle.Primary)
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId(`booking_delete_${type}`)
+          .setLabel(lang === 'ar' ? '🗑️ حذف حجز' : '🗑️ Delete Booking')
+          .setStyle(ButtonStyle.Danger)
       );
 
     const row2 = new ActionRowBuilder()
@@ -145,7 +153,11 @@ export class ButtonManager {
         new ButtonBuilder()
           .setCustomId('alliance_members')
           .setLabel(t(lang, 'alliance.members'))
-          .setStyle(ButtonStyle.Primary)
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId('alliance_manage')
+          .setLabel(lang === 'ar' ? '⚙️ إدارة الأعضاء' : '⚙️ Manage Members')
+          .setStyle(ButtonStyle.Success)
       );
 
     const row2 = new ActionRowBuilder()
@@ -217,11 +229,102 @@ export class ButtonManager {
       )
       .setTimestamp();
 
-    const row = new ActionRowBuilder()
+    const row1 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('perm_manage_admins')
+          .setLabel(lang === 'ar' ? '👮 إدارة المشرفين' : '👮 Manage Admins')
+          .setStyle(ButtonStyle.Primary)
+      );
+
+    const row2 = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
           .setCustomId('back_main')
           .setLabel(t(lang, 'permissions.back'))
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+    return { embeds: [embed], components: [row1, row2] };
+  }
+
+  static createStatsMenu(lang = 'ar') {
+    const allBookings = db.getBookings();
+    const alliance = db.getAlliance();
+    const perms = db.getPermissions();
+    
+    const totalBookings = allBookings.building.length + allBookings.research.length + allBookings.training.length;
+    
+    const embed = new EmbedBuilder()
+      .setColor('#00ffff')
+      .setTitle(lang === 'ar' ? '📊 إحصائيات البوت' : '📊 Bot Statistics')
+      .setDescription(lang === 'ar' ? 'إحصائيات الاستخدام الحالية' : 'Current usage statistics')
+      .addFields(
+        { name: '🏗️ حجوزات البناء', value: allBookings.building.length.toString(), inline: true },
+        { name: '🔬 حجوزات الأبحاث', value: allBookings.research.length.toString(), inline: true },
+        { name: '⚔️ حجوزات التدريب', value: allBookings.training.length.toString(), inline: true },
+        { name: '📝 إجمالي الحجوزات', value: totalBookings.toString(), inline: true },
+        { name: '👥 أعضاء التحالف', value: alliance.members.length.toString(), inline: true },
+        { name: '👮 المشرفين', value: perms.admins.length.toString(), inline: true }
+      )
+      .setTimestamp();
+
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('back_main')
+          .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+    return { embeds: [embed], components: [row] };
+  }
+
+  static createHelpMenu(lang = 'ar') {
+    const embed = new EmbedBuilder()
+      .setColor('#9b59b6')
+      .setTitle(lang === 'ar' ? '❓ قائمة المساعدة' : '❓ Help Menu')
+      .setDescription(lang === 'ar' 
+        ? 'دليل استخدام البوت بالتفصيل'
+        : 'Detailed bot usage guide')
+      .addFields(
+        { 
+          name: lang === 'ar' ? '📅 نظام الحجوزات' : '📅 Booking System',
+          value: lang === 'ar'
+            ? '• اختر نوع الحجز (بناء/أبحاث/تدريب)\n• أضف حجز جديد بالضغط على زر "إضافة"\n• شاهد جميع الحجوزات\n• احذف حجزك الخاص'
+            : '• Choose booking type\n• Add new booking\n• View all bookings\n• Delete your own booking',
+          inline: false
+        },
+        {
+          name: lang === 'ar' ? '🤝 نظام التحالف' : '🤝 Alliance System',
+          value: lang === 'ar'
+            ? '• عرض معلومات التحالف\n• قائمة الأعضاء\n• إدارة الأعضاء (R4, R5 فقط)'
+            : '• View alliance info\n• List members\n• Manage members (R4, R5 only)',
+          inline: false
+        },
+        {
+          name: lang === 'ar' ? '🔔 التذكيرات' : '🔔 Reminders',
+          value: lang === 'ar'
+            ? '• تلقائية قبل: 24س، 6س، 3س، 1س\n• يمكن تفعيل/تعطيل من الإعدادات\n• تصل كرسائل خاصة'
+            : '• Automatic before: 24h, 6h, 3h, 1h\n• Can enable/disable in settings\n• Sent as DMs',
+          inline: false
+        },
+        {
+          name: lang === 'ar' ? '⚙️ الإعدادات' : '⚙️ Settings',
+          value: lang === 'ar'
+            ? '• تغيير اللغة (عربي/إنجليزي)\n• تفعيل/تعطيل التذكيرات'
+            : '• Change language\n• Toggle notifications',
+          inline: false
+        }
+      )
+      .setFooter({ text: lang === 'ar' ? 'للمزيد من المساعدة، راجع الوثائق' : 'For more help, check documentation' })
+      .setTimestamp();
+
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('back_main')
+          .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
           .setStyle(ButtonStyle.Secondary)
       );
 

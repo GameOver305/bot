@@ -1,0 +1,71 @@
+import { SlashCommandBuilder } from 'discord.js';
+import db from '../utils/database.js';
+
+export default {
+  data: new SlashCommandBuilder()
+    .setName('changerank')
+    .setNameLocalizations({
+      'ar': 'تغيير_رتبة'
+    })
+    .setDescription('Change a member\'s rank (R4, R5 only)')
+    .setDescriptionLocalizations({
+      'ar': 'تغيير رتبة عضو (R4, R5 فقط)'
+    })
+    .addUserOption(option =>
+      option.setName('user')
+        .setNameLocalizations({ 'ar': 'المستخدم' })
+        .setDescription('The user to change rank')
+        .setDescriptionLocalizations({ 'ar': 'المستخدم المراد تغيير رتبته' })
+        .setRequired(true))
+    .addStringOption(option =>
+      option.setName('rank')
+        .setNameLocalizations({ 'ar': 'الرتبة' })
+        .setDescription('New rank')
+        .setDescriptionLocalizations({ 'ar': 'الرتبة الجديدة' })
+        .setRequired(true)
+        .addChoices(
+          { name: 'R1', value: 'R1' },
+          { name: 'R2', value: 'R2' },
+          { name: 'R3', value: 'R3' },
+          { name: 'R4', value: 'R4' },
+          { name: 'R5 (القائد)', value: 'R5' }
+        )),
+
+  async execute(interaction) {
+    const userId = interaction.user.id;
+    
+    // Check permissions
+    if (!db.hasAlliancePermission(userId) && !db.isAdmin(userId)) {
+      await interaction.reply({ 
+        content: '❌ ليس لديك صلاحية لتنفيذ هذا الأمر (R4, R5 فقط)', 
+        ephemeral: true 
+      });
+      return;
+    }
+
+    const targetUser = interaction.options.getUser('user');
+    const newRank = interaction.options.getString('rank');
+
+    // Check if member exists
+    const alliance = db.getAlliance();
+    const member = alliance.members.find(m => m.id === targetUser.id);
+    
+    if (!member) {
+      await interaction.reply({ 
+        content: `❌ <@${targetUser.id}> ليس عضواً في التحالف`, 
+        ephemeral: true 
+      });
+      return;
+    }
+
+    const oldRank = member.rank;
+
+    // Change rank
+    db.updateMemberRank(targetUser.id, newRank);
+
+    await interaction.reply({ 
+      content: `✅ تم تغيير رتبة <@${targetUser.id}> من **${oldRank}** إلى **${newRank}**`, 
+      ephemeral: false 
+    });
+  },
+};
