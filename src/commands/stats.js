@@ -4,13 +4,7 @@ import db from '../utils/database.js';
 export default {
   data: new SlashCommandBuilder()
     .setName('stats')
-    .setNameLocalizations({
-      'ar': 'احصائيات'
-    })
-    .setDescription('View bot statistics')
-    .setDescriptionLocalizations({
-      'ar': 'عرض إحصائيات البوت'
-    }),
+    .setDescription('View bot statistics / عرض إحصائيات البوت'),
 
   async execute(interaction) {
     const user = db.getUser(interaction.user.id);

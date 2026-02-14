@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Collection, REST, Routes } from 'discord.js';
+import { Client, GatewayIntentBits, Collection, REST, Routes, Events } from 'discord.js';
 import { config } from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -40,35 +40,24 @@ for (const file of commandFiles) {
 // Initialize reminder system
 let reminderSystem;
 
-// Register slash commands
-const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
-
-(async () => {
-  try {
-    console.log('🔄 Started refreshing application (/) commands.');
-
-    if (process.env.GUILD_ID) {
-      // Register to specific guild for testing (instant)
-      await rest.put(
-        Routes.applicationGuildCommands(process.env.CLIENT_ID || 'temp', process.env.GUILD_ID),
-        { body: commands },
-      );
-      console.log('✅ Successfully registered guild commands.');
-    } else {
-      // Register globally (takes up to 1 hour)
-      await rest.put(
-        Routes.applicationCommands(process.env.CLIENT_ID || 'temp'),
-        { body: commands },
-      );
-      console.log('✅ Successfully registered global commands.');
-    }
-  } catch (error) {
-    console.error('❌ Error registering commands:', error);
-  }
-})();
-
 // Ready event
-client.once('ready', async () => {
+client.on(Events.ClientReady, async () => {
+  // Register slash commands after bot is ready
+  const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+  
+  try {
+    console.log('🔄 جاري تسجيل الأوامر عالمياً...');
+    
+    // Register globally (available to all servers the bot joins)
+    await rest.put(
+      Routes.applicationCommands(client.user.id),
+      { body: commands },
+    );
+    console.log('✅ تم تسجيل الأوامر عالمياً بنجاح!');
+    console.log('⏱️ ملاحظة: قد يستغرق ظهور الأوامر حتى ساعة واحدة');
+  } catch (error) {
+    console.error('❌ خطأ في تسجيل الأوامر:', error);
+  }
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log(`✅ Bot is ready!`);
   console.log(`📝 Logged in as: ${client.user.tag}`);
@@ -88,7 +77,7 @@ client.once('ready', async () => {
 });
 
 // Handle slash commands
-client.on('interactionCreate', async interaction => {
+client.on(Events.InteractionCreate, async interaction => {
   if (interaction.isChatInputCommand()) {
     const command = client.commands.get(interaction.commandName);
 

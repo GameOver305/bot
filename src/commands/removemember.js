@@ -4,18 +4,10 @@ import db from '../utils/database.js';
 export default {
   data: new SlashCommandBuilder()
     .setName('removemember')
-    .setNameLocalizations({
-      'ar': 'حذف_عضو'
-    })
-    .setDescription('Remove a member from the alliance (R4, R5 only)')
-    .setDescriptionLocalizations({
-      'ar': 'حذف عضو من التحالف (R4, R5 فقط)'
-    })
+    .setDescription('Remove a member from the alliance (R4, R5 only) / حذف عضو من التحالف (R4, R5 فقط)')
     .addUserOption(option =>
       option.setName('user')
-        .setNameLocalizations({ 'ar': 'المستخدم' })
-        .setDescription('The user to remove')
-        .setDescriptionLocalizations({ 'ar': 'المستخدم المراد حذفه' })
+        .setDescription('The user to remove / المستخدم المراد حذفه')
         .setRequired(true)),
 
   async execute(interaction) {

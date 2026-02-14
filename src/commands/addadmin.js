@@ -4,18 +4,10 @@ import db from '../utils/database.js';
 export default {
   data: new SlashCommandBuilder()
     .setName('addadmin')
-    .setNameLocalizations({
-      'ar': 'اضافة_مشرف'
-    })
-    .setDescription('Add an admin (Owner only)')
-    .setDescriptionLocalizations({
-      'ar': 'إضافة مشرف (للمالك فقط)'
-    })
+    .setDescription('Add an admin (Owner only) / إضافة مشرف (للمالك فقط)')
     .addUserOption(option =>
       option.setName('user')
-        .setNameLocalizations({ 'ar': 'المستخدم' })
-        .setDescription('The user to add as admin')
-        .setDescriptionLocalizations({ 'ar': 'المستخدم المراد إضافته كمشرف' })
+        .setDescription('The user to add as admin / المستخدم المراد إضافته كمشرف')
         .setRequired(true)),
 
   async execute(interaction) {

@@ -4,24 +4,14 @@ import db from '../utils/database.js';
 export default {
   data: new SlashCommandBuilder()
     .setName('changerank')
-    .setNameLocalizations({
-      'ar': 'تغيير_رتبة'
-    })
-    .setDescription('Change a member\'s rank (R4, R5 only)')
-    .setDescriptionLocalizations({
-      'ar': 'تغيير رتبة عضو (R4, R5 فقط)'
-    })
+    .setDescription('Change a member\'s rank (R4, R5 only) / تغيير رتبة عضو (R4, R5 فقط)')
     .addUserOption(option =>
       option.setName('user')
-        .setNameLocalizations({ 'ar': 'المستخدم' })
-        .setDescription('The user to change rank')
-        .setDescriptionLocalizations({ 'ar': 'المستخدم المراد تغيير رتبته' })
+        .setDescription('The user to change rank / المستخدم المراد تغيير رتبته')
         .setRequired(true))
     .addStringOption(option =>
       option.setName('rank')
-        .setNameLocalizations({ 'ar': 'الرتبة' })
-        .setDescription('New rank')
-        .setDescriptionLocalizations({ 'ar': 'الرتبة الجديدة' })
+        .setDescription('New rank / الرتبة الجديدة')
         .setRequired(true)
         .addChoices(
           { name: 'R1', value: 'R1' },

@@ -5,13 +5,7 @@ import db from '../utils/database.js';
 export default {
   data: new SlashCommandBuilder()
     .setName('panel')
-    .setNameLocalizations({
-      'ar': 'لوحة'
-    })
-    .setDescription('Open the main control panel')
-    .setDescriptionLocalizations({
-      'ar': 'فتح لوحة التحكم الرئيسية'
-    }),
+    .setDescription('Open the main control panel / فتح لوحة التحكم الرئيسية'),
 
   async execute(interaction) {
     const userId = interaction.user.id;

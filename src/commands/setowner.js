@@ -4,13 +4,7 @@ import db from '../utils/database.js';
 export default {
   data: new SlashCommandBuilder()
     .setName('setowner')
-    .setNameLocalizations({
-      'ar': 'تعيين_المالك'
-    })
-    .setDescription('Set the bot owner (can only be used once)')
-    .setDescriptionLocalizations({
-      'ar': 'تعيين مالك البوت (يمكن استخدامه مرة واحدة فقط)'
-    })
+    .setDescription('Set the bot owner (can only be used once) / تعيين مالك البوت (مرة واحدة فقط)')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
   async execute(interaction) {

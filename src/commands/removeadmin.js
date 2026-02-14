@@ -4,18 +4,10 @@ import db from '../utils/database.js';
 export default {
   data: new SlashCommandBuilder()
     .setName('removeadmin')
-    .setNameLocalizations({
-      'ar': 'حذف_مشرف'
-    })
-    .setDescription('Remove an admin (Owner only)')
-    .setDescriptionLocalizations({
-      'ar': 'حذف مشرف (للمالك فقط)'
-    })
+    .setDescription('Remove an admin (Owner only) / حذف مشرف (للمالك فقط)')
     .addUserOption(option =>
       option.setName('user')
-        .setNameLocalizations({ 'ar': 'المستخدم' })
-        .setDescription('The user to remove from admins')
-        .setDescriptionLocalizations({ 'ar': 'المستخدم المراد حذفه من المشرفين' })
+        .setDescription('The user to remove from admins / المستخدم المراد حذفه من المشرفين')
         .setRequired(true)),
 
   async execute(interaction) {

@@ -4,24 +4,14 @@ import db from '../utils/database.js';
 export default {
   data: new SlashCommandBuilder()
     .setName('addmember')
-    .setNameLocalizations({
-      'ar': 'اضافة_عضو'
-    })
-    .setDescription('Add a member to the alliance (R4, R5 only)')
-    .setDescriptionLocalizations({
-      'ar': 'إضافة عضو للتحالف (R4, R5 فقط)'
-    })
+    .setDescription('Add a member to the alliance (R4, R5 only) / إضافة عضو للتحالف (R4, R5 فقط)')
     .addUserOption(option =>
       option.setName('user')
-        .setNameLocalizations({ 'ar': 'المستخدم' })
-        .setDescription('The user to add')
-        .setDescriptionLocalizations({ 'ar': 'المستخدم المراد إضافته' })
+        .setDescription('The user to add / المستخدم المراد إضافته')
         .setRequired(true))
     .addStringOption(option =>
       option.setName('rank')
-        .setNameLocalizations({ 'ar': 'الرتبة' })
-        .setDescription('Member rank')
-        .setDescriptionLocalizations({ 'ar': 'رتبة العضو' })
+        .setDescription('Member rank / رتبة العضو')
         .setRequired(true)
         .addChoices(
           { name: 'R1', value: 'R1' },

@@ -40,9 +40,10 @@ test('تهيئة قاعدة البيانات', () => {
 });
 
 test('قراءة بيانات المستخدم', () => {
-  const user = db.getUser('test_user_123');
+  const user = db.getUser('test_user_new_' + Date.now());
   assert(user !== null, 'فشل في قراءة بيانات المستخدم');
   assert(user.language === 'ar', 'اللغة الافتراضية غير صحيحة');
+  assert(user.notifications === true, 'التذكيرات يجب أن تكون مفعلة افتراضياً');
 });
 
 test('حفظ بيانات المستخدم', () => {
