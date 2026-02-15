@@ -721,31 +721,40 @@ export class ButtonManager {
     return { embeds: [embed], components: [row1, row2] };
   }
 
-  // Members Management Menu
+  // Members Management Menu - Advanced with Game ID
   static createMembersMenu(userId, lang = 'en') {
     const alliance = db.getAlliance();
     const hasPermission = db.hasAlliancePermission(userId) || db.isAdmin(userId);
+    const isOwner = db.isOwner(userId);
     
     let membersList = lang === 'ar' ? 'لا يوجد أعضاء' : 'No members';
-    if (alliance.members.length > 0) {
-      const displayMembers = alliance.members.slice(0, 10);
-      membersList = displayMembers.map((m, i) => 
-        `${i + 1}. <@${m.id}> - **${m.rank}**`
-      ).join('\n');
+    if (alliance.members && alliance.members.length > 0) {
+      const displayMembers = alliance.members.slice(0, 8);
+      membersList = displayMembers.map((m, i) => {
+        const gameInfo = m.gameId ? `🎮 ${m.gameId}` : '';
+        const power = m.power ? `⚡ ${(m.power/1000000).toFixed(1)}M` : '';
+        return `${i + 1}. <@${m.id}> **[${m.rank}]**\n   ${gameInfo} ${power}`;
+      }).join('\n');
       
-      if (alliance.members.length > 10) {
+      if (alliance.members.length > 8) {
         membersList += `\n\n${lang === 'ar' ? '...والمزيد' : '...and more'} (${alliance.members.length} ${lang === 'ar' ? 'عضو' : 'members'})`;
       }
     }
 
     const embed = new EmbedBuilder()
       .setColor('#3498db')
-      .setTitle(lang === 'ar' ? '👥 إدارة الأعضاء' : '👥 Members Management')
+      .setTitle(lang === 'ar' ? '👥 إدارة الأعضاء المتقدمة' : '👥 Advanced Members Management')
       .setDescription(lang === 'ar'
-        ? 'إدارة كاملة لأعضاء التحالف'
-        : 'Complete alliance members management')
+        ? '**نظام إدارة الأعضاء المتكامل**\n\n' +
+          '🎮 ربط حسابات اللعبة بالدسكورد\n' +
+          '⚡ تتبع القوة ومستوى الفرن\n' +
+          '👑 تعيين الرتب والقادة'
+        : '**Complete Members Management System**\n\n' +
+          '🎮 Link game accounts with Discord\n' +
+          '⚡ Track power and furnace level\n' +
+          '👑 Assign ranks and leaders')
       .addFields({
-        name: lang === 'ar' ? `📋 قائمة الأعضاء (${alliance.members.length})` : `📋 Members List (${alliance.members.length})`,
+        name: lang === 'ar' ? `📋 الأعضاء (${alliance.members?.length || 0})` : `📋 Members (${alliance.members?.length || 0})`,
         value: membersList,
         inline: false
       })
@@ -754,44 +763,62 @@ export class ButtonManager {
     const row1 = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
-          .setCustomId('member_add')
+          .setCustomId('member_add_advanced')
           .setLabel(lang === 'ar' ? '➕ إضافة عضو' : '➕ Add Member')
-          .setEmoji('➕')
           .setStyle(ButtonStyle.Success)
           .setDisabled(!hasPermission),
         new ButtonBuilder()
-          .setCustomId('member_remove')
-          .setLabel(lang === 'ar' ? '➖ إزالة عضو' : '➖ Remove Member')
-          .setEmoji('➖')
-          .setStyle(ButtonStyle.Danger)
+          .setCustomId('member_edit_game')
+          .setLabel(lang === 'ar' ? '🎮 تعديل بيانات اللعبة' : '🎮 Edit Game Data')
+          .setStyle(ButtonStyle.Primary)
           .setDisabled(!hasPermission),
         new ButtonBuilder()
-          .setCustomId('member_change_rank')
-          .setLabel(lang === 'ar' ? '⭐ تغيير رتبة' : '⭐ Change Rank')
-          .setEmoji('⭐')
-          .setStyle(ButtonStyle.Primary)
-          .setDisabled(!hasPermission)
+          .setCustomId('member_set_leader')
+          .setLabel(lang === 'ar' ? '👑 تعيين قائد' : '👑 Set Leader')
+          .setStyle(ButtonStyle.Danger)
+          .setDisabled(!isOwner)
       );
 
     const row2 = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
+          .setCustomId('member_change_rank')
+          .setLabel(lang === 'ar' ? '⭐ تغيير رتبة' : '⭐ Change Rank')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!hasPermission),
+        new ButtonBuilder()
+          .setCustomId('member_remove')
+          .setLabel(lang === 'ar' ? '➖ إزالة عضو' : '➖ Remove Member')
+          .setStyle(ButtonStyle.Danger)
+          .setDisabled(!hasPermission),
+        new ButtonBuilder()
+          .setCustomId('member_view_profile')
+          .setLabel(lang === 'ar' ? '👤 عرض ملف' : '👤 View Profile')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+    const row3 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
           .setCustomId('member_list_all')
           .setLabel(lang === 'ar' ? '📋 عرض الكل' : '📋 View All')
-          .setEmoji('📋')
           .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
           .setCustomId('member_search')
           .setLabel(lang === 'ar' ? '🔍 بحث' : '🔍 Search')
-          .setEmoji('🔍')
           .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
+          .setCustomId('member_export')
+          .setLabel(lang === 'ar' ? '📤 تصدير' : '📤 Export')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(!hasPermission),
+        new ButtonBuilder()
           .setCustomId('back_main')
-          .setLabel(lang === 'ar' ? '◀️ القائمة الرئيسية' : '◀️ Main Menu')
+          .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
           .setStyle(ButtonStyle.Secondary)
       );
 
-    return { embeds: [embed], components: [row1, row2] };
+    return { embeds: [embed], components: [row1, row2, row3] };
   }
 
   // Ministries Menu
@@ -1055,9 +1082,28 @@ export class ButtonManager {
           .setStyle(ButtonStyle.Success)
           .setDisabled(!isOwner),
         new ButtonBuilder()
+          .setCustomId('owner_texts')
+          .setLabel(lang === 'ar' ? '✏️ تحكم النصوص' : '✏️ Text Control')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!isOwner),
+        new ButtonBuilder()
+          .setCustomId('owner_security')
+          .setLabel(lang === 'ar' ? '🛡️ الحماية' : '🛡️ Security')
+          .setStyle(ButtonStyle.Danger)
+          .setDisabled(!isOwner)
+      );
+
+    const row3 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
           .setCustomId('owner_default_lang')
           .setLabel(lang === 'ar' ? '🌍 اللغة الافتراضية' : '🌍 Default Language')
           .setStyle(ButtonStyle.Primary)
+          .setDisabled(!isOwner),
+        new ButtonBuilder()
+          .setCustomId('owner_cleanup')
+          .setLabel(lang === 'ar' ? '🧹 تنظيف البيانات' : '🧹 Cleanup Data')
+          .setStyle(ButtonStyle.Secondary)
           .setDisabled(!isOwner),
         new ButtonBuilder()
           .setCustomId('back_main')
@@ -1065,7 +1111,7 @@ export class ButtonManager {
           .setStyle(ButtonStyle.Secondary)
       );
 
-    return { embeds: [embed], components: [row1, row2] };
+    return { embeds: [embed], components: [row1, row2, row3] };
   }
 
   // Guilds Management Menu
@@ -1517,5 +1563,172 @@ export class ButtonManager {
 
     return { embeds: [embed], components: [row1, backRow] };
   }
-}
 
+  // Custom Texts Control Menu
+  static createCustomTextsMenu(userId, lang = 'en') {
+    const isOwner = db.isOwner(userId);
+    const texts = db.getCustomTexts();
+
+    const embed = new EmbedBuilder()
+      .setColor('#ff6b6b')
+      .setTitle(lang === 'ar' ? '✏️ تحكم في النصوص' : '✏️ Text Control')
+      .setDescription(lang === 'ar'
+        ? '**تخصيص النصوص داخل البوت**\n\n' +
+          'يمكنك تعديل:\n' +
+          '• عناوين القوائم\n' +
+          '• رسائل الترحيب\n' +
+          '• أسماء الأزرار\n' +
+          '• الإشعارات'
+        : '**Customize bot texts**\n\n' +
+          'You can edit:\n' +
+          '• Menu titles\n' +
+          '• Welcome messages\n' +
+          '• Button names\n' +
+          '• Notifications')
+      .addFields(
+        { name: lang === 'ar' ? '📝 العنوان الرئيسي' : '📝 Main Title', value: texts.mainTitle?.[lang] || '-', inline: true },
+        { name: lang === 'ar' ? '👋 رسالة الترحيب' : '👋 Welcome Message', value: texts.welcomeMessage?.[lang] || '-', inline: true }
+      )
+      .setTimestamp();
+
+    const row1 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('text_edit_title')
+          .setLabel(lang === 'ar' ? '📝 تعديل العنوان' : '📝 Edit Title')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!isOwner),
+        new ButtonBuilder()
+          .setCustomId('text_edit_welcome')
+          .setLabel(lang === 'ar' ? '👋 تعديل الترحيب' : '👋 Edit Welcome')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!isOwner),
+        new ButtonBuilder()
+          .setCustomId('text_edit_buttons')
+          .setLabel(lang === 'ar' ? '🔘 تعديل الأزرار' : '🔘 Edit Buttons')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!isOwner)
+      );
+
+    const row2 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('text_reset_all')
+          .setLabel(lang === 'ar' ? '↩️ استعادة الافتراضي' : '↩️ Reset to Default')
+          .setStyle(ButtonStyle.Danger)
+          .setDisabled(!isOwner),
+        new ButtonBuilder()
+          .setCustomId('back_owner_admin')
+          .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+    return { embeds: [embed], components: [row1, row2] };
+  }
+
+  // Security System Menu
+  static createSecurityMenu(userId, lang = 'en') {
+    const isOwner = db.isOwner(userId);
+    const perms = db.getPermissions();
+    
+    const embed = new EmbedBuilder()
+      .setColor('#e74c3c')
+      .setTitle(lang === 'ar' ? '🛡️ نظام الحماية' : '🛡️ Security System')
+      .setDescription(lang === 'ar'
+        ? '**نظام حماية متكامل للبوت**\n\n' +
+          '🔒 حماية الأوامر الحساسة\n' +
+          '👁️ تتبع النشاطات\n' +
+          '⚠️ تنبيهات الأمان\n' +
+          '🚫 حظر المستخدمين'
+        : '**Complete bot security system**\n\n' +
+          '🔒 Protect sensitive commands\n' +
+          '👁️ Activity tracking\n' +
+          '⚠️ Security alerts\n' +
+          '🚫 User bans')
+      .addFields(
+        { name: lang === 'ar' ? '👑 المالك' : '👑 Owner', value: perms.owner ? `<@${perms.owner}>` : '-', inline: true },
+        { name: lang === 'ar' ? '👮 المشرفين' : '👮 Admins', value: `${perms.admins?.length || 0}`, inline: true }
+      )
+      .setTimestamp();
+
+    const row1 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('security_view_logs')
+          .setLabel(lang === 'ar' ? '📜 سجل الأنشطة' : '📜 Activity Log')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!isOwner),
+        new ButtonBuilder()
+          .setCustomId('security_ban_user')
+          .setLabel(lang === 'ar' ? '🚫 حظر مستخدم' : '🚫 Ban User')
+          .setStyle(ButtonStyle.Danger)
+          .setDisabled(!isOwner),
+        new ButtonBuilder()
+          .setCustomId('security_unban_user')
+          .setLabel(lang === 'ar' ? '✅ إلغاء حظر' : '✅ Unban User')
+          .setStyle(ButtonStyle.Success)
+          .setDisabled(!isOwner)
+      );
+
+    const row2 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('security_backup')
+          .setLabel(lang === 'ar' ? '💾 نسخ احتياطي' : '💾 Backup Data')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(!isOwner),
+        new ButtonBuilder()
+          .setCustomId('security_restore')
+          .setLabel(lang === 'ar' ? '📥 استعادة' : '📥 Restore')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(!isOwner),
+        new ButtonBuilder()
+          .setCustomId('back_owner_admin')
+          .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+    return { embeds: [embed], components: [row1, row2] };
+  }
+
+  // Member Profile View
+  static createMemberProfileMenu(memberId, lang = 'en') {
+    const member = db.getMember(memberId);
+    
+    if (!member) {
+      const embed = new EmbedBuilder()
+        .setColor('#e74c3c')
+        .setTitle(lang === 'ar' ? '❌ العضو غير موجود' : '❌ Member Not Found')
+        .setDescription(lang === 'ar' ? 'لم يتم العثور على هذا العضو' : 'This member was not found');
+      return { embeds: [embed], components: [] };
+    }
+
+    const embed = new EmbedBuilder()
+      .setColor('#3498db')
+      .setTitle(lang === 'ar' ? `👤 ملف العضو: ${member.gameName || member.name}` : `👤 Member Profile: ${member.gameName || member.name}`)
+      .addFields(
+        { name: '🎮 Game ID', value: member.gameId || '-', inline: true },
+        { name: '📛 Game Name', value: member.gameName || member.name || '-', inline: true },
+        { name: '⭐ Rank', value: member.rank || 'R1', inline: true },
+        { name: '⚡ Power', value: member.power ? `${(member.power/1000000).toFixed(2)}M` : '-', inline: true },
+        { name: '🔥 Furnace Level', value: member.furnaceLevel?.toString() || '-', inline: true },
+        { name: '💬 Discord', value: `<@${member.discordId || member.id}>`, inline: true },
+        { name: lang === 'ar' ? '📅 انضم في' : '📅 Joined', value: member.joinedAt ? new Date(member.joinedAt).toLocaleDateString() : '-', inline: true },
+        { name: lang === 'ar' ? '🕐 آخر نشاط' : '🕐 Last Active', value: member.lastActive ? new Date(member.lastActive).toLocaleDateString() : '-', inline: true }
+      )
+      .setTimestamp();
+
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId(`member_edit_${memberId}`)
+          .setLabel(lang === 'ar' ? '✏️ تعديل' : '✏️ Edit')
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId('menu_members')
+          .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+    return { embeds: [embed], components: [row] };
+  }}

@@ -173,11 +173,147 @@ class Database {
     const alliance = this.read('alliance');
     alliance.members.push({
       id: member.userId,
+      discordId: member.userId,
+      gameId: member.gameId || '',
       name: member.name,
+      gameName: member.gameName || member.name,
       rank: member.rank || 'R1',
-      joinedAt: new Date().toISOString()
+      power: member.power || 0,
+      furnaceLevel: member.furnaceLevel || 0,
+      joinedAt: new Date().toISOString(),
+      lastActive: new Date().toISOString()
     });
     return this.write('alliance', alliance);
+  }
+
+  // Update member with game info
+  updateMember(memberId, data) {
+    const alliance = this.read('alliance');
+    const index = alliance.members.findIndex(m => m.id === memberId || m.discordId === memberId);
+    if (index !== -1) {
+      alliance.members[index] = { ...alliance.members[index], ...data, lastActive: new Date().toISOString() };
+      return this.write('alliance', alliance);
+    }
+    return false;
+  }
+
+  // Get member by game ID or discord ID
+  getMember(id) {
+    const alliance = this.read('alliance');
+    return alliance.members.find(m => m.id === id || m.discordId === id || m.gameId === id);
+  }
+
+  // Cleanup expired bookings
+  cleanupExpiredBookings() {
+    const bookings = this.read('bookings');
+    const now = Date.now();
+    let cleaned = 0;
+    
+    for (const type of ['building', 'research', 'training', 'ministry']) {
+      if (bookings[type]) {
+        const before = bookings[type].length;
+        bookings[type] = bookings[type].filter(b => {
+          const endTime = new Date(b.endDate || b.date + ' ' + b.time).getTime();
+          return endTime > now;
+        });
+        cleaned += before - bookings[type].length;
+      }
+    }
+    
+    if (cleaned > 0) {
+      this.write('bookings', bookings);
+      console.log(`🧹 تنظيف تلقائي: حذف ${cleaned} موعد منتهي`);
+    }
+    return cleaned;
+  }
+
+  // Custom texts management
+  getCustomTexts() {
+    const users = this.read('users');
+    return users._customTexts || {
+      mainTitle: { ar: '🎮 لوحة التحكم الرئيسية', en: '🎮 Main Control Panel' },
+      allianceTitle: { ar: '🤝 التحالف', en: '🤝 Alliance' },
+      membersTitle: { ar: '👥 الأعضاء', en: '👥 Members' },
+      welcomeMessage: { ar: 'مرحباً بك في نظام إدارة التحالف', en: 'Welcome to Alliance Management System' }
+    };
+  }
+
+  setCustomText(key, arText, enText) {
+    const users = this.read('users');
+    if (!users._customTexts) users._customTexts = {};
+    users._customTexts[key] = { ar: arText, en: enText };
+    return this.write('users', users);
+  }
+
+  // Bot version management
+  getBotVersion() {
+    const users = this.read('users');
+    return users._botVersion || '2.4.0';
+  }
+
+  setBotVersion(version) {
+    const users = this.read('users');
+    users._botVersion = version;
+    return this.write('users', users);
+  }
+
+  // Banned users management
+  getBannedUsers() {
+    const users = this.read('users');
+    return users._bannedUsers || [];
+  }
+
+  banUser(userId, reason = '') {
+    const users = this.read('users');
+    if (!users._bannedUsers) users._bannedUsers = [];
+    if (!users._bannedUsers.find(b => b.userId === userId)) {
+      users._bannedUsers.push({
+        userId,
+        reason,
+        bannedAt: new Date().toISOString()
+      });
+      this.write('users', users);
+    }
+    return true;
+  }
+
+  unbanUser(userId) {
+    const users = this.read('users');
+    if (!users._bannedUsers) return false;
+    const before = users._bannedUsers.length;
+    users._bannedUsers = users._bannedUsers.filter(b => b.userId !== userId);
+    if (users._bannedUsers.length < before) {
+      this.write('users', users);
+      return true;
+    }
+    return false;
+  }
+
+  isUserBanned(userId) {
+    const bannedUsers = this.getBannedUsers();
+    return bannedUsers.some(b => b.userId === userId);
+  }
+
+  // Activity logs
+  getActivityLogs() {
+    const users = this.read('users');
+    return users._activityLogs || [];
+  }
+
+  addActivityLog(action, userId, details = {}) {
+    const users = this.read('users');
+    if (!users._activityLogs) users._activityLogs = [];
+    users._activityLogs.push({
+      timestamp: new Date().toISOString(),
+      action,
+      user: userId,
+      details
+    });
+    // Keep only last 100 logs
+    if (users._activityLogs.length > 100) {
+      users._activityLogs = users._activityLogs.slice(-100);
+    }
+    return this.write('users', users);
   }
 
   removeMember(userId) {

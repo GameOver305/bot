@@ -377,6 +377,148 @@ export async function handleButtonInteraction(interaction) {
       }
     }
 
+    // Owner Text Control
+    else if (customId === 'owner_texts') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
+        return;
+      }
+      await interaction.update(ButtonManager.createCustomTextsMenu(userId, lang));
+    }
+
+    // Owner Security
+    else if (customId === 'owner_security') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
+        return;
+      }
+      await interaction.update(ButtonManager.createSecurityMenu(userId, lang));
+    }
+
+    // Owner Cleanup
+    else if (customId === 'owner_cleanup') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
+        return;
+      }
+      
+      const result = db.cleanupExpiredBookings();
+      await interaction.reply({
+        content: lang === 'ar' 
+          ? `🧹 **تم التنظيف بنجاح!**\n\n📊 **الحجوزات المحذوفة:** ${result.deletedCount}\n⏰ **وقت التنظيف:** ${new Date().toLocaleString('ar-SA')}`
+          : `🧹 **Cleanup successful!**\n\n📊 **Deleted bookings:** ${result.deletedCount}\n⏰ **Cleanup time:** ${new Date().toLocaleString()}`,
+        ephemeral: true
+      });
+    }
+
+    // Text Edit Handlers
+    else if (customId === 'text_edit_title') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
+        return;
+      }
+      await showTextEditModal(interaction, 'mainTitle', lang);
+    }
+    else if (customId === 'text_edit_welcome') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
+        return;
+      }
+      await showTextEditModal(interaction, 'welcomeMessage', lang);
+    }
+    else if (customId === 'text_edit_buttons') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
+        return;
+      }
+      await showTextEditModal(interaction, 'buttonLabels', lang);
+    }
+    else if (customId === 'text_reset_all') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
+        return;
+      }
+      db.setCustomText('mainTitle', null);
+      db.setCustomText('welcomeMessage', null);
+      db.setCustomText('buttonLabels', null);
+      await interaction.reply({
+        content: lang === 'ar' ? '✅ تم إعادة تعيين جميع النصوص للافتراضي!' : '✅ All texts reset to defaults!',
+        ephemeral: true
+      });
+    }
+
+    // Security Handlers
+    else if (customId === 'security_view_logs') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
+        return;
+      }
+      const logs = db.getActivityLogs ? db.getActivityLogs() : [];
+      const recentLogs = logs.slice(-10);
+      let logText = recentLogs.map(log => `• ${log.timestamp}: ${log.action} - ${log.user}`).join('\n') || (lang === 'ar' ? 'لا توجد سجلات' : 'No logs');
+      await interaction.reply({
+        content: lang === 'ar' 
+          ? `📋 **آخر 10 سجلات نشاط:**\n\n${logText}`
+          : `📋 **Last 10 activity logs:**\n\n${logText}`,
+        ephemeral: true
+      });
+    }
+    else if (customId === 'security_backup') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
+        return;
+      }
+      const fs = require('fs');
+      const path = require('path');
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const backupDir = path.join(process.cwd(), 'data', 'backups');
+      
+      if (!fs.existsSync(backupDir)) {
+        fs.mkdirSync(backupDir, { recursive: true });
+      }
+      
+      const dataFiles = ['users.json', 'permissions.json', 'alliance.json', 'bookings.json', 'guilds.json', 'ministries.json'];
+      let backedUp = 0;
+      
+      for (const file of dataFiles) {
+        const srcPath = path.join(process.cwd(), 'data', file);
+        const destPath = path.join(backupDir, `${timestamp}_${file}`);
+        if (fs.existsSync(srcPath)) {
+          fs.copyFileSync(srcPath, destPath);
+          backedUp++;
+        }
+      }
+      
+      await interaction.reply({
+        content: lang === 'ar' 
+          ? `✅ **تم النسخ الاحتياطي بنجاح!**\n\n📁 **ملفات:** ${backedUp}\n📅 **الوقت:** ${timestamp}`
+          : `✅ **Backup successful!**\n\n📁 **Files:** ${backedUp}\n📅 **Time:** ${timestamp}`,
+        ephemeral: true
+      });
+    }
+    else if (customId === 'security_ban_user') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
+        return;
+      }
+      await showBanUserModal(interaction, lang);
+    }
+    else if (customId === 'security_unban_user') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
+        return;
+      }
+      const bannedUsers = db.getBannedUsers ? db.getBannedUsers() : [];
+      if (bannedUsers.length === 0) {
+        await interaction.reply({
+          content: lang === 'ar' ? '✅ لا يوجد مستخدمين محظورين' : '✅ No banned users',
+          ephemeral: true
+        });
+        return;
+      }
+      await showUnbanUserModal(interaction, lang);
+    }
+
     // Guild Management
     else if (customId === 'guild_add') {
       if (!db.isOwner(userId)) {
@@ -1492,6 +1634,91 @@ async function showRemoveAdminModal(interaction, lang) {
     .setLabel(lang === 'ar' ? 'ID المستخدم أو @منشن' : 'User ID or @mention')
     .setStyle(TextInputStyle.Short)
     .setPlaceholder('123456789012345678 or @user')
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(userIdInput)
+  );
+
+  await interaction.showModal(modal);
+}
+
+// === Text Edit Modal ===
+async function showTextEditModal(interaction, textType, lang) {
+  const modal = new ModalBuilder()
+    .setCustomId(`text_edit_modal_${textType}`)
+    .setTitle(lang === 'ar' ? 'تعديل النص' : 'Edit Text');
+
+  const labels = {
+    mainTitle: lang === 'ar' ? 'العنوان الرئيسي' : 'Main Title',
+    welcomeMessage: lang === 'ar' ? 'رسالة الترحيب' : 'Welcome Message',
+    buttonLabels: lang === 'ar' ? 'أسماء الأزرار (JSON)' : 'Button Labels (JSON)'
+  };
+
+  const placeholders = {
+    mainTitle: lang === 'ar' ? 'أدخل العنوان الجديد' : 'Enter new title',
+    welcomeMessage: lang === 'ar' ? 'أدخل رسالة الترحيب الجديدة' : 'Enter new welcome message',
+    buttonLabels: '{"booking": "حجز", "alliance": "تحالف"}'
+  };
+
+  const textInput = new TextInputBuilder()
+    .setCustomId('text_value')
+    .setLabel(labels[textType] || textType)
+    .setStyle(textType === 'buttonLabels' || textType === 'welcomeMessage' ? TextInputStyle.Paragraph : TextInputStyle.Short)
+    .setPlaceholder(placeholders[textType] || '')
+    .setRequired(true);
+
+  const currentValue = db.getCustomTexts ? db.getCustomTexts()[textType] : null;
+  if (currentValue) {
+    textInput.setValue(typeof currentValue === 'object' ? JSON.stringify(currentValue) : currentValue);
+  }
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(textInput)
+  );
+
+  await interaction.showModal(modal);
+}
+
+// === Ban User Modal ===
+async function showBanUserModal(interaction, lang) {
+  const modal = new ModalBuilder()
+    .setCustomId('security_ban_modal')
+    .setTitle(lang === 'ar' ? 'حظر مستخدم' : 'Ban User');
+
+  const userIdInput = new TextInputBuilder()
+    .setCustomId('user_id')
+    .setLabel(lang === 'ar' ? 'ID المستخدم' : 'User ID')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('123456789012345678')
+    .setRequired(true);
+
+  const reasonInput = new TextInputBuilder()
+    .setCustomId('reason')
+    .setLabel(lang === 'ar' ? 'السبب' : 'Reason')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder(lang === 'ar' ? 'سبب الحظر' : 'Reason for ban')
+    .setRequired(false);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(userIdInput),
+    new ActionRowBuilder().addComponents(reasonInput)
+  );
+
+  await interaction.showModal(modal);
+}
+
+// === Unban User Modal ===
+async function showUnbanUserModal(interaction, lang) {
+  const modal = new ModalBuilder()
+    .setCustomId('security_unban_modal')
+    .setTitle(lang === 'ar' ? 'إلغاء حظر مستخدم' : 'Unban User');
+
+  const userIdInput = new TextInputBuilder()
+    .setCustomId('user_id')
+    .setLabel(lang === 'ar' ? 'ID المستخدم' : 'User ID')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('123456789012345678')
     .setRequired(true);
 
   modal.addComponents(

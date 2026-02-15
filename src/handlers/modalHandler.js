@@ -110,6 +110,17 @@ export async function handleModalSubmit(interaction) {
     else if (customId === 'modal_layout_edit_labels') {
       await processEditLabels(interaction, userId, lang);
     }
+    // Text Edit Modals
+    else if (customId.startsWith('text_edit_modal_')) {
+      await processTextEdit(interaction, customId.replace('text_edit_modal_', ''), userId, lang);
+    }
+    // Security Modals
+    else if (customId === 'security_ban_modal') {
+      await processBanUser(interaction, userId, lang);
+    }
+    else if (customId === 'security_unban_modal') {
+      await processUnbanUser(interaction, userId, lang);
+    }
   } catch (error) {
     console.error('Error handling modal submit:', error);
     await interaction.reply({ 
@@ -1337,4 +1348,98 @@ function getDefaultLayout() {
     ['menu_permissions', 'menu_stats', 'menu_settings'],
     ['menu_help', 'switch_language']
   ];
+}
+
+// Process Text Edit Modal
+async function processTextEdit(interaction, textType, userId, lang) {
+  if (!db.isOwner(userId)) {
+    return await interaction.reply({
+      content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission',
+      ephemeral: true
+    });
+  }
+  
+  const textValue = interaction.fields.getTextInputValue('text_value');
+  
+  try {
+    if (textType === 'buttonLabels') {
+      // Try to parse as JSON
+      const parsed = JSON.parse(textValue);
+      db.setCustomText(textType, parsed, parsed);
+    } else {
+      db.setCustomText(textType, textValue, textValue);
+    }
+    
+    await interaction.reply({
+      content: lang === 'ar' ? '✅ تم تحديث النص بنجاح!' : '✅ Text updated successfully!',
+      ephemeral: true
+    });
+  } catch (error) {
+    await interaction.reply({
+      content: lang === 'ar' 
+        ? `❌ خطأ في تحديث النص: ${error.message}` 
+        : `❌ Error updating text: ${error.message}`,
+      ephemeral: true
+    });
+  }
+}
+
+// Process Ban User Modal
+async function processBanUser(interaction, userId, lang) {
+  if (!db.isOwner(userId)) {
+    return await interaction.reply({
+      content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission',
+      ephemeral: true
+    });
+  }
+  
+  const targetUserId = interaction.fields.getTextInputValue('user_id').trim();
+  const reason = interaction.fields.getTextInputValue('reason') || '';
+  
+  // Don't allow banning the owner
+  if (db.isOwner(targetUserId)) {
+    return await interaction.reply({
+      content: lang === 'ar' ? '❌ لا يمكن حظر المالك' : '❌ Cannot ban owner',
+      ephemeral: true
+    });
+  }
+  
+  db.banUser(targetUserId, reason);
+  db.addActivityLog('ban_user', userId, { targetUserId, reason });
+  
+  await interaction.reply({
+    content: lang === 'ar'
+      ? `✅ تم حظر المستخدم <@${targetUserId}>\n📝 السبب: ${reason || 'لا يوجد'}`
+      : `✅ User <@${targetUserId}> has been banned\n📝 Reason: ${reason || 'None'}`,
+    ephemeral: true
+  });
+}
+
+// Process Unban User Modal
+async function processUnbanUser(interaction, userId, lang) {
+  if (!db.isOwner(userId)) {
+    return await interaction.reply({
+      content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission',
+      ephemeral: true
+    });
+  }
+  
+  const targetUserId = interaction.fields.getTextInputValue('user_id').trim();
+  
+  const success = db.unbanUser(targetUserId);
+  
+  if (success) {
+    db.addActivityLog('unban_user', userId, { targetUserId });
+    await interaction.reply({
+      content: lang === 'ar'
+        ? `✅ تم إلغاء حظر المستخدم <@${targetUserId}>`
+        : `✅ User <@${targetUserId}> has been unbanned`,
+      ephemeral: true
+    });
+  } else {
+    await interaction.reply({
+      content: lang === 'ar' ? '❌ المستخدم غير محظور' : '❌ User is not banned',
+      ephemeral: true
+    });
+  }
 }
