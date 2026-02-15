@@ -72,6 +72,103 @@ export async function handleButtonInteraction(interaction) {
     else if (customId === 'back_permissions') {
       await interaction.update(ButtonManager.createPermissionsMenu(lang));
     }
+    else if (customId === 'back_owner_admin') {
+      await interaction.update(ButtonManager.createOwnerAdminMenu(userId, lang));
+    }
+
+    // Owner Admin Panel
+    else if (customId === 'menu_owner_admin') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ هذه القائمة للمالك فقط' : '❌ This menu is owner only', ephemeral: true });
+        return;
+      }
+      await interaction.update(ButtonManager.createOwnerAdminMenu(userId, lang));
+    }
+    else if (customId === 'owner_guilds') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
+        return;
+      }
+      await interaction.update(ButtonManager.createGuildsMenu(userId, lang));
+    }
+    else if (customId === 'owner_buttons') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
+        return;
+      }
+      await interaction.update(ButtonManager.createButtonLayoutMenu(userId, lang));
+    }
+    else if (customId === 'owner_permissions') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
+        return;
+      }
+      await interaction.update(ButtonManager.createPermissionsMenu(lang));
+    }
+
+    // Guild Management
+    else if (customId === 'guild_add') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
+        return;
+      }
+      await showAddGuildModal(interaction, lang);
+    }
+    else if (customId === 'guild_remove') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
+        return;
+      }
+      await showRemoveGuildModal(interaction, lang);
+    }
+    else if (customId === 'guild_info') {
+      const guilds = db.getGuilds();
+      let info = lang === 'ar' 
+        ? '**📋 معلومات نظام السيرفرات:**\n\n'
+        : '**📋 Server System Information:**\n\n';
+      info += lang === 'ar'
+        ? '• **GUILD_ID** في ملف .env يُستخدم فقط للتسجيل السريع للأوامر في السيرفر المحدد.\n'
+        + '• إذا تم تركه فارغاً، يتم تسجيل الأوامر عالمياً (يستغرق حتى ساعة).\n'
+        + '• البوت يعمل في جميع السيرفرات المضاف إليها تلقائياً.\n'
+        + '• نظام إدارة السيرفرات هنا للتتبع فقط، ليس إلزامياً لعمل البوت.\n\n'
+        + `**عدد السيرفرات المسجلة:** ${guilds.registered?.length || 0}`
+        : '• **GUILD_ID** in .env is only used for fast command registration in specified server.\n'
+        + '• If left empty, commands are registered globally (takes up to 1 hour).\n'
+        + '• Bot works in all servers it\'s added to automatically.\n'
+        + '• Server management system here is for tracking only, not required for bot operation.\n\n'
+        + `**Registered Servers:** ${guilds.registered?.length || 0}`;
+      await interaction.reply({ content: info, ephemeral: true });
+    }
+
+    // Button Layout
+    else if (customId === 'layout_reset') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
+        return;
+      }
+      db.resetButtonLayout();
+      await interaction.update(ButtonManager.createButtonLayoutMenu(userId, lang));
+      await interaction.followUp({ 
+        content: lang === 'ar' ? '✅ تم إعادة تعيين ترتيب الأزرار إلى الوضع الافتراضي' : '✅ Button layout reset to default', 
+        ephemeral: true 
+      });
+    }
+    else if (customId === 'layout_preview') {
+      await interaction.reply({ 
+        ...ButtonManager.createMainMenu(lang), 
+        ephemeral: true 
+      });
+    }
+
+    // Alliance Register Button
+    else if (customId === 'alliance_register') {
+      const isR5OrAdmin = (db.getAlliance().leader === userId) || db.isAdmin(userId);
+      if (!isR5OrAdmin) {
+        await interaction.reply({ content: t(lang, 'alliance.noPermission'), ephemeral: true });
+        return;
+      }
+      await showAllianceRegisterModal(interaction, lang);
+    }
 
     // Booking type selection
     else if (customId.startsWith('booking_') && !customId.includes('add') && !customId.includes('view')) {
@@ -1721,6 +1818,96 @@ async function showAssignMinisterModal(interaction, lang) {
   modal.addComponents(
     new ActionRowBuilder().addComponents(ministryInput),
     new ActionRowBuilder().addComponents(userInput)
+  );
+
+  await interaction.showModal(modal);
+}
+
+// Add Guild Modal
+async function showAddGuildModal(interaction, lang) {
+  const modal = new ModalBuilder()
+    .setCustomId('modal_guild_add')
+    .setTitle(lang === 'ar' ? 'إضافة سيرفر' : 'Add Server');
+
+  const idInput = new TextInputBuilder()
+    .setCustomId('guild_id')
+    .setLabel(lang === 'ar' ? 'معرف السيرفر (Guild ID)' : 'Server ID (Guild ID)')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('1234567890123456789')
+    .setRequired(true)
+    .setMinLength(17)
+    .setMaxLength(20);
+
+  const nameInput = new TextInputBuilder()
+    .setCustomId('guild_name')
+    .setLabel(lang === 'ar' ? 'اسم السيرفر' : 'Server Name')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder(lang === 'ar' ? 'اسم للتعريف فقط' : 'Name for reference only')
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(idInput),
+    new ActionRowBuilder().addComponents(nameInput)
+  );
+
+  await interaction.showModal(modal);
+}
+
+// Remove Guild Modal
+async function showRemoveGuildModal(interaction, lang) {
+  const modal = new ModalBuilder()
+    .setCustomId('modal_guild_remove')
+    .setTitle(lang === 'ar' ? 'إزالة سيرفر' : 'Remove Server');
+
+  const idInput = new TextInputBuilder()
+    .setCustomId('guild_id')
+    .setLabel(lang === 'ar' ? 'معرف السيرفر (Guild ID)' : 'Server ID (Guild ID)')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('1234567890123456789')
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(idInput)
+  );
+
+  await interaction.showModal(modal);
+}
+
+// Alliance Register Modal
+async function showAllianceRegisterModal(interaction, lang) {
+  const modal = new ModalBuilder()
+    .setCustomId('modal_alliance_register')
+    .setTitle(lang === 'ar' ? 'تسجيل التحالف' : 'Register Alliance');
+
+  const nameInput = new TextInputBuilder()
+    .setCustomId('alliance_name')
+    .setLabel(lang === 'ar' ? 'اسم التحالف' : 'Alliance Name')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder(lang === 'ar' ? 'مثال: أبطال الشرق' : 'Example: Eastern Heroes')
+    .setRequired(true)
+    .setMaxLength(50);
+
+  const tagInput = new TextInputBuilder()
+    .setCustomId('alliance_tag')
+    .setLabel(lang === 'ar' ? 'تاق التحالف (3-4 أحرف)' : 'Alliance Tag (3-4 chars)')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder(lang === 'ar' ? 'مثال: [EH]' : 'Example: [EH]')
+    .setRequired(true)
+    .setMinLength(3)
+    .setMaxLength(6);
+
+  const descInput = new TextInputBuilder()
+    .setCustomId('alliance_desc')
+    .setLabel(lang === 'ar' ? 'وصف التحالف (اختياري)' : 'Description (optional)')
+    .setStyle(TextInputStyle.Paragraph)
+    .setPlaceholder(lang === 'ar' ? 'أدخل وصفاً للتحالف...' : 'Enter alliance description...')
+    .setRequired(false)
+    .setMaxLength(500);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(nameInput),
+    new ActionRowBuilder().addComponents(tagInput),
+    new ActionRowBuilder().addComponents(descInput)
   );
 
   await interaction.showModal(modal);

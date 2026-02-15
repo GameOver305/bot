@@ -76,6 +76,17 @@ export async function handleModalSubmit(interaction) {
     else if (customId === 'modal_ministry_assign') {
       await processAssignMinister(interaction, userId, lang);
     }
+    // Guild Management Modals
+    else if (customId === 'modal_guild_add') {
+      await processAddGuild(interaction, userId, lang);
+    }
+    else if (customId === 'modal_guild_remove') {
+      await processRemoveGuild(interaction, userId, lang);
+    }
+    // Alliance Registration Modal
+    else if (customId === 'modal_alliance_register') {
+      await processAllianceRegister(interaction, userId, lang);
+    }
   } catch (error) {
     console.error('Error handling modal submit:', error);
     await interaction.reply({ 
@@ -968,6 +979,105 @@ async function processAssignMinister(interaction, userId, lang) {
     content: lang === 'ar' 
       ? `✅ تم تعيين <@${ministerId}> وزيراً لـ "${name}"` 
       : `✅ Assigned <@${ministerId}> as minister of "${name}"`, 
+    ephemeral: true 
+  });
+}
+
+// Process Add Guild
+async function processAddGuild(interaction, userId, lang) {
+  if (!db.isOwner(userId)) {
+    await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
+    return;
+  }
+
+  const guildId = interaction.fields.getTextInputValue('guild_id').trim();
+  const guildName = interaction.fields.getTextInputValue('guild_name').trim();
+
+  // Validate guild ID format
+  if (!/^\d{17,20}$/.test(guildId)) {
+    await interaction.reply({ 
+      content: lang === 'ar' ? '❌ معرّف السيرفر غير صحيح (يجب أن يكون 17-20 رقم)' : '❌ Invalid server ID (must be 17-20 digits)', 
+      ephemeral: true 
+    });
+    return;
+  }
+
+  const result = db.addGuild(guildId, guildName);
+
+  if (!result.success) {
+    await interaction.reply({ 
+      content: lang === 'ar' ? '❌ السيرفر مسجل مسبقاً' : '❌ Server already registered', 
+      ephemeral: true 
+    });
+    return;
+  }
+
+  await interaction.reply({ 
+    content: lang === 'ar' 
+      ? `✅ تم تسجيل السيرفر "${guildName}" بنجاح!\n🆔 معرف: ${guildId}` 
+      : `✅ Server "${guildName}" registered successfully!\n🆔 ID: ${guildId}`, 
+    ephemeral: true 
+  });
+}
+
+// Process Remove Guild
+async function processRemoveGuild(interaction, userId, lang) {
+  if (!db.isOwner(userId)) {
+    await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
+    return;
+  }
+
+  const guildId = interaction.fields.getTextInputValue('guild_id').trim();
+
+  const result = db.removeGuild(guildId);
+
+  if (!result.success) {
+    await interaction.reply({ 
+      content: lang === 'ar' ? '❌ السيرفر غير موجود في القائمة' : '❌ Server not found in list', 
+      ephemeral: true 
+    });
+    return;
+  }
+
+  await interaction.reply({ 
+    content: lang === 'ar' 
+      ? `✅ تم إزالة السيرفر "${result.guild.name}" من القائمة` 
+      : `✅ Server "${result.guild.name}" removed from list`, 
+    ephemeral: true 
+  });
+}
+
+// Process Alliance Register
+async function processAllianceRegister(interaction, userId, lang) {
+  const isR5OrAdmin = db.isAdmin(userId) || db.isOwner(userId) || (db.getAlliance().leader === userId);
+  
+  if (!isR5OrAdmin) {
+    await interaction.reply({ content: t(lang, 'alliance.noPermission'), ephemeral: true });
+    return;
+  }
+
+  const name = interaction.fields.getTextInputValue('alliance_name').trim();
+  const tag = interaction.fields.getTextInputValue('alliance_tag').trim();
+  const desc = interaction.fields.getTextInputValue('alliance_desc')?.trim() || '';
+
+  // Update alliance info
+  const alliance = db.getAlliance();
+  alliance.name = name;
+  alliance.tag = tag;
+  alliance.description = desc;
+  
+  // Set current user as leader if no leader exists
+  if (!alliance.leader) {
+    alliance.leader = userId;
+  }
+
+  db.updateAlliance(alliance);
+  db.addAllianceLog('alliance_register', userId, { name, tag });
+
+  await interaction.reply({ 
+    content: lang === 'ar' 
+      ? `✅ تم تسجيل التحالف بنجاح!\n\n🏰 **الاسم:** ${name}\n🏷️ **التاق:** ${tag}\n📝 **الوصف:** ${desc || 'لا يوجد'}` 
+      : `✅ Alliance registered successfully!\n\n🏰 **Name:** ${name}\n🏷️ **Tag:** ${tag}\n📝 **Description:** ${desc || 'None'}`, 
     ephemeral: true 
   });
 }

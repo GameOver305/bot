@@ -16,7 +16,9 @@ class Database {
       reminders: path.join(this.dataDir, 'reminders.json'),
       alliance_logs: path.join(this.dataDir, 'alliance_logs.json'),
       ministries: path.join(this.dataDir, 'ministries.json'),
-      advanced_bookings: path.join(this.dataDir, 'advanced_bookings.json')
+      advanced_bookings: path.join(this.dataDir, 'advanced_bookings.json'),
+      guilds: path.join(this.dataDir, 'guilds.json'),
+      button_layout: path.join(this.dataDir, 'button_layout.json')
     };
     
     this.init();
@@ -64,6 +66,18 @@ class Database {
         activities: [],
         schedules: [],
         notifications: []
+      },
+      guilds: {
+        registered: [],
+        settings: {}
+      },
+      button_layout: {
+        rows: [
+          ['menu_alliance', 'menu_bookings', 'menu_members'],
+          ['menu_ministries', 'menu_logs', 'menu_schedule'],
+          ['menu_permissions', 'menu_reminders', 'menu_stats'],
+          ['menu_settings', 'menu_help', 'lang_switch']
+        ]
       }
     };
 
@@ -97,7 +111,7 @@ class Database {
   // User preferences
   getUser(userId) {
     const users = this.read('users');
-    return users[userId] || { language: 'en', notifications: true };
+    return users[userId] || { language: 'ar', notifications: true };
   }
 
   setUser(userId, data) {
@@ -552,6 +566,64 @@ class Database {
     }
     
     return false;
+  }
+
+  // Guild (Server) Management
+  getGuilds() {
+    return this.read('guilds') || { registered: [], settings: {} };
+  }
+
+  addGuild(guildId, guildName) {
+    const data = this.getGuilds();
+    if (!data.registered.find(g => g.id === guildId)) {
+      data.registered.push({ 
+        id: guildId, 
+        name: guildName, 
+        addedAt: Date.now() 
+      });
+      this.write('guilds', data);
+      return { success: true, guild: { id: guildId, name: guildName } };
+    }
+    return { success: false, message: 'Guild already registered' };
+  }
+
+  removeGuild(guildId) {
+    const data = this.getGuilds();
+    const index = data.registered.findIndex(g => g.id === guildId);
+    if (index !== -1) {
+      const removed = data.registered.splice(index, 1)[0];
+      this.write('guilds', data);
+      return { success: true, guild: removed };
+    }
+    return { success: false, message: 'Guild not found' };
+  }
+
+  // Button Layout Management
+  getButtonLayout() {
+    return this.read('button_layout') || {
+      rows: [
+        ['menu_alliance', 'menu_bookings', 'menu_members'],
+        ['menu_ministries', 'menu_logs', 'menu_schedule'],
+        ['menu_permissions', 'menu_reminders', 'menu_stats'],
+        ['menu_settings', 'menu_help', 'lang_switch']
+      ]
+    };
+  }
+
+  updateButtonLayout(newLayout) {
+    return this.write('button_layout', newLayout);
+  }
+
+  resetButtonLayout() {
+    const defaultLayout = {
+      rows: [
+        ['menu_alliance', 'menu_bookings', 'menu_members'],
+        ['menu_ministries', 'menu_logs', 'menu_schedule'],
+        ['menu_permissions', 'menu_reminders', 'menu_stats'],
+        ['menu_settings', 'menu_help', 'lang_switch']
+      ]
+    };
+    return this.write('button_layout', defaultLayout);
   }
 }
 

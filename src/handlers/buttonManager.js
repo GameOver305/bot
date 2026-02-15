@@ -230,6 +230,7 @@ export class ButtonManager {
 
   static createSettingsMenu(userId, lang = 'en') {
     const user = db.getUser(userId);
+    const isOwner = db.isOwner(userId);
     
     const embed = new EmbedBuilder()
       .setColor('#ffff00')
@@ -265,7 +266,21 @@ export class ButtonManager {
           .setStyle(ButtonStyle.Secondary)
       );
 
-    return { embeds: [embed], components: [row1, row2] };
+    const components = [row1, row2];
+
+    // Add Owner Admin button if user is owner
+    if (isOwner) {
+      const ownerRow = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId('menu_owner_admin')
+            .setLabel(lang === 'ar' ? '👑 إدارة المالك' : '👑 Owner Admin')
+            .setStyle(ButtonStyle.Danger)
+        );
+      components.splice(1, 0, ownerRow); // Insert before back button
+    }
+
+    return { embeds: [embed], components };
   }
 
   static createPermissionsMenu(lang = 'en') {
@@ -451,6 +466,8 @@ export class ButtonManager {
   static createAllianceManageMenu(userId, lang = 'en') {
     const hasPermission = db.hasAlliancePermission(userId) || db.isAdmin(userId);
     const isR5OrAdmin = (db.getAlliance().leader === userId) || db.isAdmin(userId);
+    const alliance = db.getAlliance();
+    const hasAlliance = alliance.name && alliance.name !== '';
 
     const embed = new EmbedBuilder()
       .setColor('#9b59b6')
@@ -463,41 +480,50 @@ export class ButtonManager {
     const row1 = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
-          .setCustomId('alliance_add_member')
-          .setLabel(lang === 'ar' ? '➕ إضافة عضو' : '➕ Add Member')
-          .setStyle(ButtonStyle.Success)
-          .setDisabled(!hasPermission),
+          .setCustomId('alliance_register')
+          .setLabel(lang === 'ar' ? '📝 تسجيل التحالف' : '📝 Register Alliance')
+          .setStyle(hasAlliance ? ButtonStyle.Secondary : ButtonStyle.Success)
+          .setDisabled(!isR5OrAdmin),
         new ButtonBuilder()
-          .setCustomId('alliance_remove_member')
-          .setLabel(lang === 'ar' ? '➖ إزالة عضو' : '➖ Remove Member')
-          .setStyle(ButtonStyle.Danger)
-          .setDisabled(!hasPermission),
-        new ButtonBuilder()
-          .setCustomId('alliance_change_rank')
-          .setLabel(lang === 'ar' ? '⭐ تغيير رتبة' : '⭐ Change Rank')
+          .setCustomId('alliance_set_info')
+          .setLabel(lang === 'ar' ? '✏️ تعديل المعلومات' : '✏️ Edit Info')
           .setStyle(ButtonStyle.Primary)
-          .setDisabled(!hasPermission)
+          .setDisabled(!isR5OrAdmin || !hasAlliance),
+        new ButtonBuilder()
+          .setCustomId('alliance_set_leader')
+          .setLabel(lang === 'ar' ? '👑 تعيين قائد' : '👑 Set Leader')
+          .setStyle(ButtonStyle.Danger)
+          .setDisabled(!db.isAdmin(userId))
       );
 
     const row2 = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
-          .setCustomId('alliance_set_info')
-          .setLabel(lang === 'ar' ? '📝 تعديل المعلومات' : '📝 Edit Info')
-          .setStyle(ButtonStyle.Primary)
-          .setDisabled(!isR5OrAdmin),
+          .setCustomId('alliance_add_member')
+          .setLabel(lang === 'ar' ? '➕ إضافة عضو' : '➕ Add Member')
+          .setStyle(ButtonStyle.Success)
+          .setDisabled(!hasPermission || !hasAlliance),
         new ButtonBuilder()
-          .setCustomId('alliance_set_leader')
-          .setLabel(lang === 'ar' ? '👑 تعيين قائد' : '👑 Set Leader')
+          .setCustomId('alliance_remove_member')
+          .setLabel(lang === 'ar' ? '➖ إزالة عضو' : '➖ Remove Member')
           .setStyle(ButtonStyle.Danger)
-          .setDisabled(!db.isAdmin(userId)),
+          .setDisabled(!hasPermission || !hasAlliance),
+        new ButtonBuilder()
+          .setCustomId('alliance_change_rank')
+          .setLabel(lang === 'ar' ? '⭐ تغيير رتبة' : '⭐ Change Rank')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!hasPermission || !hasAlliance)
+      );
+
+    const row3 = new ActionRowBuilder()
+      .addComponents(
         new ButtonBuilder()
           .setCustomId('back_alliance')
           .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
           .setStyle(ButtonStyle.Secondary)
       );
 
-    return { embeds: [embed], components: [row1, row2] };
+    return { embeds: [embed], components: [row1, row2, row3] };
   }
 
   // Admin Management Menu
@@ -830,6 +856,178 @@ export class ButtonManager {
         new ButtonBuilder()
           .setCustomId('back_main')
           .setLabel(lang === 'ar' ? '◀️ القائمة الرئيسية' : '◀️ Main Menu')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+    return { embeds: [embed], components: [row1, row2] };
+  }
+
+  // Owner Admin Menu - Advanced Settings for Owner Only
+  static createOwnerAdminMenu(userId, lang = 'en') {
+    const isOwner = db.isOwner(userId);
+
+    const embed = new EmbedBuilder()
+      .setColor('#ff0000')
+      .setTitle(lang === 'ar' ? '👑 لوحة التحكم المتقدمة - المالك فقط' : '👑 Advanced Admin Panel - Owner Only')
+      .setDescription(lang === 'ar' 
+        ? '⚠️ **هذه القائمة مخصصة للمالك فقط**\n\n' +
+          'إدارة متقدمة للنظام والصلاحيات'
+        : '⚠️ **This menu is for owner only**\n\n' +
+          'Advanced system and permissions management')
+      .setTimestamp();
+
+    if (!isOwner) {
+      embed.setDescription(lang === 'ar' 
+        ? '❌ ليس لديك صلاحية الوصول لهذه القائمة' 
+        : '❌ You don\'t have permission to access this menu');
+    }
+
+    const row1 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('owner_guilds')
+          .setLabel(lang === 'ar' ? '🌐 إدارة السيرفرات' : '🌐 Manage Servers')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!isOwner),
+        new ButtonBuilder()
+          .setCustomId('owner_buttons')
+          .setLabel(lang === 'ar' ? '🔧 تعديل الأزرار' : '🔧 Customize Buttons')
+          .setStyle(ButtonStyle.Success)
+          .setDisabled(!isOwner),
+        new ButtonBuilder()
+          .setCustomId('owner_permissions')
+          .setLabel(lang === 'ar' ? '🔐 الصلاحيات' : '🔐 Permissions')
+          .setStyle(ButtonStyle.Danger)
+          .setDisabled(!isOwner)
+      );
+
+    const row2 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('back_main')
+          .setLabel(lang === 'ar' ? '◀️ القائمة الرئيسية' : '◀️ Main Menu')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+    return { embeds: [embed], components: [row1, row2] };
+  }
+
+  // Guilds Management Menu
+  static createGuildsMenu(userId, lang = 'en') {
+    const isOwner = db.isOwner(userId);
+    const guilds = db.getGuilds();
+
+    let description = lang === 'ar'
+      ? '**إدارة السيرفرات المسجلة**\n\n'
+      : '**Manage Registered Servers**\n\n';
+
+    if (guilds.registered && guilds.registered.length > 0) {
+      description += '**📋 ' + (lang === 'ar' ? 'السيرفرات المسجلة:' : 'Registered Servers:') + '**\n';
+      guilds.registered.forEach((guild, index) => {
+        const addedDate = new Date(guild.addedAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US');
+        description += `\n${index + 1}. **${guild.name}**\n   🆔 ${guild.id}\n   📅 ${addedDate}`;
+      });
+    } else {
+      description += lang === 'ar' 
+        ? '❌ لا توجد سيرفرات مسجلة حالياً\n\nℹ️ **ملاحظة:** GUILD_ID في ملف .env يستخدم فقط للتسجيل السريع للأوامر.\nإذا تركته فارغاً، سيتم تسجيل الأوامر عالمياً وستعمل في جميع السيرفرات.'
+        : '❌ No servers registered currently\n\nℹ️ **Note:** GUILD_ID in .env is only used for fast command registration.\nIf left empty, commands will be registered globally and work in all servers.';
+    }
+
+    const embed = new EmbedBuilder()
+      .setColor('#00ffff')
+      .setTitle(lang === 'ar' ? '🌐 إدارة السيرفرات' : '🌐 Server Management')
+      .setDescription(description)
+      .setTimestamp();
+
+    const row1 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('guild_add')
+          .setLabel(lang === 'ar' ? '➕ إضافة سيرفر' : '➕ Add Server')
+          .setStyle(ButtonStyle.Success)
+          .setDisabled(!isOwner),
+        new ButtonBuilder()
+          .setCustomId('guild_remove')
+          .setLabel(lang === 'ar' ? '➖ إزالة سيرفر' : '➖ Remove Server')
+          .setStyle(ButtonStyle.Danger)
+          .setDisabled(!isOwner || !guilds.registered || guilds.registered.length === 0),
+        new ButtonBuilder()
+          .setCustomId('guild_info')
+          .setLabel(lang === 'ar' ? 'ℹ️ معلومات' : 'ℹ️ Info')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+    const row2 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('back_owner_admin')
+          .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+    return { embeds: [embed], components: [row1, row2] };
+  }
+
+  // Button Layout Customization Menu
+  static createButtonLayoutMenu(userId, lang = 'en') {
+    const isOwner = db.isOwner(userId);
+    const layout = db.getButtonLayout();
+
+    let description = lang === 'ar'
+      ? '**تخصيص ترتيب الأزرار في القائمة الرئيسية**\n\n'
+      : '**Customize button layout in main menu**\n\n';
+
+    description += '**📋 ' + (lang === 'ar' ? 'الترتيب الحالي:' : 'Current Layout:') + '**\n\n';
+    
+    const buttonLabels = {
+      menu_alliance: lang === 'ar' ? '🤝 التحالف' : '🤝 Alliance',
+      menu_bookings: lang === 'ar' ? '📅 الحجوزات' : '📅 Bookings',
+      menu_members: lang === 'ar' ? '👥 الأعضاء' : '👥 Members',
+      menu_ministries: lang === 'ar' ? '🏛️ الوزارات' : '🏛️ Ministries',
+      menu_logs: lang === 'ar' ? '📜 السجلات' : '📜 Logs',
+      menu_schedule: lang === 'ar' ? '📅 الجدولة' : '📅 Schedule',
+      menu_permissions: lang === 'ar' ? '🔐 الصلاحيات' : '🔐 Permissions',
+      menu_reminders: lang === 'ar' ? '🔔 التذكيرات' : '🔔 Reminders',
+      menu_stats: lang === 'ar' ? '📊 الإحصائيات' : '📊 Stats',
+      menu_settings: lang === 'ar' ? '⚙️ الإعدادات' : '⚙️ Settings',
+      menu_help: lang === 'ar' ? '❓ المساعدة' : '❓ Help',
+      lang_switch: lang === 'ar' ? '🌐 اللغة' : '🌐 Language'
+    };
+
+    layout.rows.forEach((row, rowIndex) => {
+      description += `**${lang === 'ar' ? 'الصف' : 'Row'} ${rowIndex + 1}:** `;
+      description += row.map(btn => buttonLabels[btn] || btn).join(' | ');
+      description += '\n';
+    });
+
+    description += '\n' + (lang === 'ar' 
+      ? 'ℹ️ **قريباً:** سيتم إضافة نظام السحب والإفلات لتعديل الترتيب'
+      : 'ℹ️ **Coming Soon:** Drag & drop system for reordering');
+
+    const embed = new EmbedBuilder()
+      .setColor('#9900ff')
+      .setTitle(lang === 'ar' ? '🔧 تخصيص الأزرار' : '🔧 Button Customization')
+      .setDescription(description)
+      .setTimestamp();
+
+    const row1 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('layout_reset')
+          .setLabel(lang === 'ar' ? '🔄 إعادة تعيين' : '🔄 Reset')
+          .setStyle(ButtonStyle.Danger)
+          .setDisabled(!isOwner),
+        new ButtonBuilder()
+          .setCustomId('layout_preview')
+          .setLabel(lang === 'ar' ? '👁️ معاينة' : '👁️ Preview')
+          .setStyle(ButtonStyle.Primary)
+      );
+
+    const row2 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('back_owner_admin')
+          .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
           .setStyle(ButtonStyle.Secondary)
       );
 
