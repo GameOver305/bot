@@ -176,9 +176,14 @@ class Database {
     const member = alliance.members.find(m => m.id === userId);
     if (member) {
       member.rank = rank;
-      return this.write('alliance', alliance);
+      this.write('alliance', alliance);
+      return { success: true, member };
     }
-    return false;
+    return { success: false, message: 'Member not found' };
+  }
+
+  changeMemberRank(userId, rank) {
+    return this.updateMemberRank(userId, rank);
   }
 
   // Permissions
@@ -408,6 +413,19 @@ class Database {
     // Remove related schedules
     data.schedules = data.schedules.filter(s => s.ministryId !== id);
     return this.write('ministries', data);
+  }
+
+  deleteMinistry(name) {
+    const data = this.read('ministries');
+    const ministry = data.ministries.find(m => m.name.toLowerCase() === name.toLowerCase());
+    if (!ministry) {
+      return { success: false, message: 'Ministry not found' };
+    }
+    data.ministries = data.ministries.filter(m => m.id !== ministry.id);
+    // Remove related schedules
+    data.schedules = data.schedules.filter(s => s.ministryId !== ministry.id);
+    this.write('ministries', data);
+    return { success: true, ministry };
   }
 
   assignMinister(ministryId, userId) {

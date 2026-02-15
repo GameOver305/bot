@@ -699,7 +699,7 @@ export class ButtonManager {
   // Logs Menu
   static createLogsMenu(userId, lang = 'en') {
     const hasPermission = db.isAdmin(userId);
-    const logChannel = db.getLogChannel(interaction?.guildId || 'default');
+    const logChannel = db.getLogChannel('default');
     const recentLogs = db.getRecentLogs(5);
     
     let logsText = lang === 'ar' ? 'لا توجد سجلات' : 'No logs';
