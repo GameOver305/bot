@@ -42,7 +42,7 @@ test('تهيئة قاعدة البيانات', () => {
 test('قراءة بيانات المستخدم', () => {
   const user = db.getUser('test_user_new_' + Date.now());
   assert(user !== null, 'فشل في قراءة بيانات المستخدم');
-  assert(user.language === 'ar', 'اللغة الافتراضية غير صحيحة');
+  assert(user.language === 'en', 'اللغة الافتراضية غير صحيحة');
   assert(user.notifications === true, 'التذكيرات يجب أن تكون مفعلة افتراضياً');
 });
 
@@ -129,7 +129,7 @@ test('إضافة عضو للتحالف', () => {
 
 test('تغيير رتبة عضو', () => {
   const result = db.updateMemberRank('test_member_456', 'R4');
-  assert(result === true, 'فشل في تغيير الرتبة');
+  assert(result.success === true, 'فشل في تغيير الرتبة');
   
   const alliance = db.getAlliance();
   const member = alliance.members.find(m => m.id === 'test_member_456');
