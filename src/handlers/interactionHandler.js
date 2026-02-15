@@ -251,18 +251,88 @@ export async function handleButtonInteraction(interaction) {
       await interaction.deferReply({ ephemeral: true });
       
       try {
-        const { exec } = await import('child_process');
-        const { promisify } = await import('util');
-        const execAsync = promisify(exec);
+        const https = await import('https');
+        const fs = await import('fs');
+        const path = await import('path');
         
-        // Git pull
+        const REPO_OWNER = 'GameOver305';
+        const REPO_NAME = 'bot';
+        const BRANCH = 'main';
+        
+        // Files to update
+        const filesToUpdate = [
+          'src/index.js',
+          'src/handlers/buttonManager.js',
+          'src/handlers/interactionHandler.js',
+          'src/handlers/modalHandler.js',
+          'src/utils/database.js',
+          'src/utils/translations.js',
+          'src/commands/dang.js',
+          'src/commands/stats.js',
+          'src/commands/addadmin.js',
+          'src/commands/removeadmin.js',
+          'src/services/reminderService.js',
+          'package.json'
+        ];
+        
         await interaction.editReply({ 
-          content: lang === 'ar' ? '🔄 جاري سحب التحديثات من GitHub...' : '🔄 Pulling updates from GitHub...' 
+          content: lang === 'ar' ? '🔄 جاري تحميل التحديثات من GitHub...' : '🔄 Downloading updates from GitHub...' 
         });
         
-        const { stdout: pullOutput, stderr: pullError } = await execAsync('git pull origin main', { cwd: process.cwd() });
+        // Function to download file from GitHub
+        const downloadFile = (filePath) => {
+          return new Promise((resolve, reject) => {
+            const url = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}/${filePath}`;
+            https.get(url, (response) => {
+              if (response.statusCode === 404) {
+                resolve(null); // File doesn't exist, skip
+                return;
+              }
+              if (response.statusCode !== 200) {
+                reject(new Error(`HTTP ${response.statusCode}`));
+                return;
+              }
+              let data = '';
+              response.on('data', chunk => data += chunk);
+              response.on('end', () => resolve(data));
+              response.on('error', reject);
+            }).on('error', reject);
+          });
+        };
         
-        if (pullOutput.includes('Already up to date') || pullOutput.includes('Already up-to-date')) {
+        let updatedCount = 0;
+        let errorCount = 0;
+        
+        for (const filePath of filesToUpdate) {
+          try {
+            const content = await downloadFile(filePath);
+            if (content) {
+              const fullPath = path.join(process.cwd(), filePath);
+              
+              // Ensure directory exists
+              const dir = path.dirname(fullPath);
+              if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+              }
+              
+              // Read current file to check if different
+              let currentContent = '';
+              try {
+                currentContent = fs.readFileSync(fullPath, 'utf8');
+              } catch (e) {}
+              
+              if (content !== currentContent) {
+                fs.writeFileSync(fullPath, content, 'utf8');
+                updatedCount++;
+              }
+            }
+          } catch (err) {
+            errorCount++;
+            console.error(`Error updating ${filePath}:`, err.message);
+          }
+        }
+        
+        if (updatedCount === 0) {
           await interaction.editReply({ 
             content: lang === 'ar' 
               ? '✅ البوت محدث بالفعل! لا توجد تحديثات جديدة.' 
@@ -271,20 +341,25 @@ export async function handleButtonInteraction(interaction) {
           return;
         }
         
-        // Install dependencies if package.json changed
-        if (pullOutput.includes('package.json') || pullOutput.includes('package-lock.json')) {
-          await interaction.editReply({ 
-            content: lang === 'ar' ? '📦 جاري تثبيت المتطلبات الجديدة...' : '📦 Installing new dependencies...' 
-          });
-          await execAsync('npm install', { cwd: process.cwd() });
+        // Check if package.json was updated to run npm install
+        const { exec } = await import('child_process');
+        const { promisify } = await import('util');
+        const execAsync = promisify(exec);
+        
+        await interaction.editReply({ 
+          content: lang === 'ar' ? '📦 جاري تثبيت المتطلبات...' : '📦 Installing dependencies...' 
+        });
+        
+        try {
+          await execAsync('npm install', { cwd: process.cwd(), timeout: 60000 });
+        } catch (npmErr) {
+          console.error('npm install error:', npmErr.message);
         }
         
         await interaction.editReply({ 
           content: lang === 'ar' 
-            ? '✅ تم التحديث بنجاح!\n\n🔄 **جاري إعادة تشغيل البوت...**\n\n' +
-              '```\n' + pullOutput.substring(0, 500) + '\n```'
-            : '✅ Update successful!\n\n🔄 **Restarting bot...**\n\n' +
-              '```\n' + pullOutput.substring(0, 500) + '\n```'
+            ? `✅ تم التحديث بنجاح!\n\n📁 **ملفات محدثة:** ${updatedCount}\n${errorCount > 0 ? `⚠️ أخطاء: ${errorCount}\n` : ''}\n🔄 **جاري إعادة تشغيل البوت...**`
+            : `✅ Update successful!\n\n📁 **Files updated:** ${updatedCount}\n${errorCount > 0 ? `⚠️ Errors: ${errorCount}\n` : ''}\n🔄 **Restarting bot...**`
         });
         
         // Restart bot after 2 seconds
@@ -296,8 +371,8 @@ export async function handleButtonInteraction(interaction) {
         console.error('Update error:', error);
         await interaction.editReply({ 
           content: lang === 'ar' 
-            ? `❌ خطأ في التحديث:\n\`\`\`\n${error.message}\n\`\`\`\n\n💡 تأكد أن Git مثبت على السيرفر.`
-            : `❌ Update error:\n\`\`\`\n${error.message}\n\`\`\`\n\n💡 Make sure Git is installed on the server.`
+            ? `❌ خطأ في التحديث:\n\`\`\`\n${error.message}\n\`\`\``
+            : `❌ Update error:\n\`\`\`\n${error.message}\n\`\`\``
         });
       }
     }
