@@ -646,7 +646,7 @@ class Database {
   // Default language management
   getDefaultLanguage() {
     const data = this.read('users');
-    return data._defaultLanguage || 'ar';
+    return data._defaultLanguage || 'en';
   }
 
   setDefaultLanguage(lang) {
