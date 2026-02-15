@@ -122,16 +122,16 @@ OWNER_ID=your_user_id_here
 ## 🎮 Usage
 
 ### Main Commands:
-- `/panel` - Open the main control panel (all features accessible from here!)
+- `/dang` - Open the main control panel (all features accessible from here!)
 
 ### First-Time Setup:
-1. Run `/panel` to open the main menu
+1. Run `/dang` to open the main menu
 2. Go to Permissions → Set yourself as owner using `/setowner @you`
 3. Configure your alliance information in Alliance menu
 4. Start adding bookings!
 
 ### Adding a Booking:
-1. `/panel` → Bookings → Choose type (Building/Research/Training)
+1. `/dang` → Bookings → Choose type (Building/Research/Training)
 2. Click "➕ Add Booking"
 3. Fill in the form:
    - **Member Name**: Enter the member's name
@@ -143,7 +143,7 @@ OWNER_ID=your_user_id_here
 ### Language Switching:
 **Two ways to switch language:**
 1. **Quick Switch**: Click the language button on main menu (🇺🇸/🇸🇦)
-2. **Settings Menu**: `/panel` → Settings → Choose language
+2. **Settings Menu**: `/dang` → Settings → Choose language
 
 ## 📊 Features in Detail
 
@@ -236,7 +236,7 @@ bot/
 ├── src/
 │   ├── index.js                 # Main bot entry point
 │   ├── commands/                # Slash commands
-│   │   ├── panel.js            # Main panel command
+│   │   ├── dang.js            # Main panel command
 │   │   ├── addadmin.js         # Admin management
 │   │   ├── addmember.js        # Alliance member management
 │   │   ├── changerank.js       # Rank management
@@ -310,7 +310,7 @@ MIT License - Feel free to use and modify!
 ## 💬 Support
 
 Need help? 
-- Check the `/panel` → Help menu in Discord
+- Check the `/dang` → Help menu in Discord
 - Review TROUBLESHOOTING.md
 - Open an issue on GitHub
 - Check the documentation files

@@ -86,7 +86,7 @@ npm start
 
 في Discord اكتب:
 ```
-/panel
+/dang
 ```
 
 ---

@@ -140,7 +140,7 @@ MEMBER (العضو)
     └── src/
         ├── index.js
         ├── commands/
-        │   ├── panel.js
+        │   ├── dang.js
         │   ├── stats.js
         │   ├── addmember.js
         │   ├── removemember.js
@@ -198,7 +198,7 @@ cat .env
 node src/index.js
 
 # 3. في Discord:
-/panel
+/dang
 ```
 
 ### الميزات الجديدة

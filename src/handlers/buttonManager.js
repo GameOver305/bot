@@ -6,56 +6,83 @@ export class ButtonManager {
   static createMainMenu(lang = 'en') {
     const embed = new EmbedBuilder()
       .setColor('#0099ff')
-      .setTitle(t(lang, 'mainMenu.title'))
-      .setDescription(t(lang, 'mainMenu.description'))
+      .setTitle(lang === 'ar' ? '🎮 لوحة التحكم الرئيسية' : '🎮 Main Control Panel')
+      .setDescription(lang === 'ar' 
+        ? '**مرحباً بك في نظام إدارة التحالف المتكامل**\n\n' +
+          'استخدم الأزرار التالية للوصول إلى جميع الأنظمة:'
+        : '**Welcome to the Complete Alliance Management System**\n\n' +
+          'Use the buttons below to access all systems:')
       .setTimestamp();
 
+    // Row 1: Core Systems
     const row1 = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
-          .setCustomId('menu_bookings')
-          .setLabel(t(lang, 'mainMenu.bookings'))
-          .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
           .setCustomId('menu_alliance')
-          .setLabel(t(lang, 'mainMenu.alliance'))
+          .setLabel(lang === 'ar' ? '🤝 التحالف' : '🤝 Alliance')
           .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
-          .setCustomId('menu_reminders')
-          .setLabel(lang === 'ar' ? '🔔 التذكيرات' : '🔔 Reminders')
+          .setCustomId('menu_bookings')
+          .setLabel(lang === 'ar' ? '📅 الحجوزات' : '📅 Bookings')
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId('menu_members')
+          .setLabel(lang === 'ar' ? '👥 الأعضاء' : '👥 Members')
           .setStyle(ButtonStyle.Primary)
       );
 
+    // Row 2: Advanced Systems
     const row2 = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
-          .setCustomId('menu_settings')
-          .setLabel(t(lang, 'mainMenu.settings'))
-          .setStyle(ButtonStyle.Secondary),
+          .setCustomId('menu_ministries')
+          .setLabel(lang === 'ar' ? '🏛️ الوزارات' : '🏛️ Ministries')
+          .setStyle(ButtonStyle.Success),
         new ButtonBuilder()
-          .setCustomId('menu_permissions')
-          .setLabel(t(lang, 'mainMenu.permissions'))
-          .setStyle(ButtonStyle.Danger),
+          .setCustomId('menu_logs')
+          .setLabel(lang === 'ar' ? '📜 السجلات' : '📜 Logs')
+          .setStyle(ButtonStyle.Success),
         new ButtonBuilder()
-          .setCustomId('menu_stats')
-          .setLabel(lang === 'ar' ? '📊 الإحصائيات' : '📊 Statistics')
+          .setCustomId('menu_schedule')
+          .setLabel(lang === 'ar' ? '📅 الجدولة' : '📅 Schedule')
           .setStyle(ButtonStyle.Success)
       );
 
+    // Row 3: Management & Settings
     const row3 = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
+          .setCustomId('menu_permissions')
+          .setLabel(lang === 'ar' ? '🔐 الصلاحيات' : '🔐 Permissions')
+          .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
+          .setCustomId('menu_reminders')
+          .setLabel(lang === 'ar' ? '🔔 التذكيرات' : '🔔 Reminders')
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId('menu_stats')
+          .setLabel(lang === 'ar' ? '📊 الإحصائيات' : '📊 Stats')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+    // Row 4: Help & Settings
+    const row4 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('menu_settings')
+          .setLabel(lang === 'ar' ? '⚙️ الإعدادات' : '⚙️ Settings')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
           .setCustomId('menu_help')
-          .setLabel(t(lang, 'mainMenu.help'))
+          .setLabel(lang === 'ar' ? '❓ المساعدة' : '❓ Help')
           .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
           .setCustomId('lang_switch')
           .setLabel(lang === 'ar' ? '🇺🇸 English' : '🇸🇦 العربية')
-          .setEmoji(lang === 'ar' ? '🇺🇸' : '🇸🇦')
           .setStyle(ButtonStyle.Success)
       );
 
-    return { embeds: [embed], components: [row1, row2, row3] };
+    return { embeds: [embed], components: [row1, row2, row3, row4] };
   }
 
   static createBookingsMenu(lang = 'en') {
@@ -516,6 +543,293 @@ export class ButtonManager {
         new ButtonBuilder()
           .setCustomId('back_permissions')
           .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+    return { embeds: [embed], components: [row1, row2] };
+  }
+
+  // Members Management Menu
+  static createMembersMenu(userId, lang = 'en') {
+    const alliance = db.getAlliance();
+    const hasPermission = db.hasAlliancePermission(userId) || db.isAdmin(userId);
+    
+    let membersList = lang === 'ar' ? 'لا يوجد أعضاء' : 'No members';
+    if (alliance.members.length > 0) {
+      const displayMembers = alliance.members.slice(0, 10);
+      membersList = displayMembers.map((m, i) => 
+        `${i + 1}. <@${m.id}> - **${m.rank}**`
+      ).join('\n');
+      
+      if (alliance.members.length > 10) {
+        membersList += `\n\n${lang === 'ar' ? '...والمزيد' : '...and more'} (${alliance.members.length} ${lang === 'ar' ? 'عضو' : 'members'})`;
+      }
+    }
+
+    const embed = new EmbedBuilder()
+      .setColor('#3498db')
+      .setTitle(lang === 'ar' ? '👥 إدارة الأعضاء' : '👥 Members Management')
+      .setDescription(lang === 'ar'
+        ? 'إدارة كاملة لأعضاء التحالف'
+        : 'Complete alliance members management')
+      .addFields({
+        name: lang === 'ar' ? `📋 قائمة الأعضاء (${alliance.members.length})` : `📋 Members List (${alliance.members.length})`,
+        value: membersList,
+        inline: false
+      })
+      .setTimestamp();
+
+    const row1 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('member_add')
+          .setLabel(lang === 'ar' ? '➕ إضافة عضو' : '➕ Add Member')
+          .setEmoji('➕')
+          .setStyle(ButtonStyle.Success)
+          .setDisabled(!hasPermission),
+        new ButtonBuilder()
+          .setCustomId('member_remove')
+          .setLabel(lang === 'ar' ? '➖ إزالة عضو' : '➖ Remove Member')
+          .setEmoji('➖')
+          .setStyle(ButtonStyle.Danger)
+          .setDisabled(!hasPermission),
+        new ButtonBuilder()
+          .setCustomId('member_change_rank')
+          .setLabel(lang === 'ar' ? '⭐ تغيير رتبة' : '⭐ Change Rank')
+          .setEmoji('⭐')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!hasPermission)
+      );
+
+    const row2 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('member_list_all')
+          .setLabel(lang === 'ar' ? '📋 عرض الكل' : '📋 View All')
+          .setEmoji('📋')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId('member_search')
+          .setLabel(lang === 'ar' ? '🔍 بحث' : '🔍 Search')
+          .setEmoji('🔍')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId('back_main')
+          .setLabel(lang === 'ar' ? '◀️ القائمة الرئيسية' : '◀️ Main Menu')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+    return { embeds: [embed], components: [row1, row2] };
+  }
+
+  // Ministries Menu
+  static createMinistriesMenu(userId, lang = 'en') {
+    const ministries = db.getMinistries();
+    const hasPermission = db.isAdmin(userId);
+    
+    let ministriesList = lang === 'ar' ? 'لا توجد وزارات' : 'No ministries';
+    if (ministries && ministries.length > 0) {
+      ministriesList = ministries.slice(0, 5).map((m, i) => {
+        const minister = m.minister ? `<@${m.minister}>` : (lang === 'ar' ? 'غير معين' : 'Not assigned');
+        return `${i + 1}. **${m.name}**\n   👤 ${minister}`;
+      }).join('\n\n');
+      
+      if (ministries.length > 5) {
+        ministriesList += `\n\n${lang === 'ar' ? '...والمزيد' : '...and more'} (${ministries.length} ${lang === 'ar' ? 'وزارة' : 'ministries'})`;
+      }
+    }
+
+    const embed = new EmbedBuilder()
+      .setColor('#9b59b6')
+      .setTitle(lang === 'ar' ? '🏛️ نظام الوزارات' : '🏛️ Ministries System')
+      .setDescription(lang === 'ar'
+        ? 'إدارة الوزارات وتعيين الوزراء'
+        : 'Manage ministries and assign ministers')
+      .addFields({
+        name: lang === 'ar' ? '📋 الوزارات' : '📋 Ministries',
+        value: ministriesList,
+        inline: false
+      })
+      .setTimestamp();
+
+    const row1 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('ministry_add')
+          .setLabel(lang === 'ar' ? '➕ إضافة وزارة' : '➕ Add Ministry')
+          .setEmoji('➕')
+          .setStyle(ButtonStyle.Success)
+          .setDisabled(!hasPermission),
+        new ButtonBuilder()
+          .setCustomId('ministry_view')
+          .setLabel(lang === 'ar' ? '📋 عرض الكل' : '📋 View All')
+          .setEmoji('📋')
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId('ministry_assign')
+          .setLabel(lang === 'ar' ? '👤 تعيين وزير' : '👤 Assign Minister')
+          .setEmoji('👤')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!hasPermission)
+      );
+
+    const row2 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('ministry_schedule')
+          .setLabel(lang === 'ar' ? '📅 جدولة نشاط' : '📅 Schedule Activity')
+          .setEmoji('📅')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(!hasPermission),
+        new ButtonBuilder()
+          .setCustomId('ministry_delete')
+          .setLabel(lang === 'ar' ? '🗑️ حذف وزارة' : '🗑️ Delete Ministry')
+          .setEmoji('🗑️')
+          .setStyle(ButtonStyle.Danger)
+          .setDisabled(!hasPermission || !ministries || ministries.length === 0),
+        new ButtonBuilder()
+          .setCustomId('back_main')
+          .setLabel(lang === 'ar' ? '◀️ القائمة الرئيسية' : '◀️ Main Menu')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+    return { embeds: [embed], components: [row1, row2] };
+  }
+
+  // Logs Menu
+  static createLogsMenu(userId, lang = 'en') {
+    const hasPermission = db.isAdmin(userId);
+    const logChannel = db.getLogChannel(interaction?.guildId || 'default');
+    const recentLogs = db.getRecentLogs(5);
+    
+    let logsText = lang === 'ar' ? 'لا توجد سجلات' : 'No logs';
+    if (recentLogs && recentLogs.length > 0) {
+      logsText = recentLogs.map((log, i) => {
+        const time = new Date(log.timestamp).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-US', {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        return `${i + 1}. **${log.action}** - <@${log.userId}>\n   ⏰ ${time}`;
+      }).join('\n');
+    }
+
+    const embed = new EmbedBuilder()
+      .setColor('#e67e22')
+      .setTitle(lang === 'ar' ? '📜 نظام السجلات' : '📜 Logs System')
+      .setDescription(lang === 'ar'
+        ? 'تتبع جميع العمليات والأنشطة'
+        : 'Track all operations and activities')
+      .addFields(
+        {
+          name: lang === 'ar' ? '📺 قناة السجلات' : '📺 Log Channel',
+          value: logChannel ? `<#${logChannel}>` : (lang === 'ar' ? '❌ غير محددة' : '❌ Not set'),
+          inline: false
+        },
+        {
+          name: lang === 'ar' ? '📋 آخر السجلات' : '📋 Recent Logs',
+          value: logsText,
+          inline: false
+        }
+      )
+      .setTimestamp();
+
+    const row1 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('logs_set_channel')
+          .setLabel(lang === 'ar' ? '📺 تعيين قناة' : '📺 Set Channel')
+          .setEmoji('📺')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!hasPermission),
+        new ButtonBuilder()
+          .setCustomId('logs_view_all')
+          .setLabel(lang === 'ar' ? '📋 عرض الكل' : '📋 View All')
+          .setEmoji('📋')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId('logs_clear_channel')
+          .setLabel(lang === 'ar' ? '🗑️ إزالة القناة' : '🗑️ Remove Channel')
+          .setEmoji('🗑️')
+          .setStyle(ButtonStyle.Danger)
+          .setDisabled(!hasPermission || !logChannel)
+      );
+
+    const row2 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('back_main')
+          .setLabel(lang === 'ar' ? '◀️ القائمة الرئيسية' : '◀️ Main Menu')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+    return { embeds: [embed], components: [row1, row2] };
+  }
+
+  // Schedule Menu
+  static createScheduleMenu(userId, lang = 'en') {
+    const hasPermission = db.isAdmin(userId);
+    const schedules = db.getScheduledBookings();
+    
+    let schedulesText = lang === 'ar' ? 'لا توجد جداول' : 'No schedules';
+    if (schedules && schedules.length > 0) {
+      schedulesText = schedules.slice(0, 5).map((s, i) => {
+        const time = new Date(s.startTime).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-US');
+        const repeat = s.repeat ? '🔄' : '⏱️';
+        return `${i + 1}. ${repeat} ${lang === 'ar' ? 'نشاط' : 'Activity'} #${s.activityId}\n   ⏰ ${time}`;
+      }).join('\n');
+      
+      if (schedules.length > 5) {
+        schedulesText += `\n\n${lang === 'ar' ? '...والمزيد' : '...and more'} (${schedules.length} ${lang === 'ar' ? 'جدول' : 'schedules'})`;
+      }
+    }
+
+    const embed = new EmbedBuilder()
+      .setColor('#e91e63')
+      .setTitle(lang === 'ar' ? '📅 نظام الجدولة المتقدم' : '📅 Advanced Schedule System')
+      .setDescription(lang === 'ar'
+        ? 'جدولة الأنشطة والتنبيهات المتكررة'
+        : 'Schedule activities and recurring alerts')
+      .addFields({
+        name: lang === 'ar' ? '📋 الجداول النشطة' : '📋 Active Schedules',
+        value: schedulesText,
+        inline: false
+      })
+      .setTimestamp();
+
+    const row1 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('schedule_create')
+          .setLabel(lang === 'ar' ? '➕ إنشاء جدول' : '➕ Create Schedule')
+          .setEmoji('➕')
+          .setStyle(ButtonStyle.Success)
+          .setDisabled(!hasPermission),
+        new ButtonBuilder()
+          .setCustomId('schedule_view_all')
+          .setLabel(lang === 'ar' ? '📋 عرض الكل' : '📋 View All')
+          .setEmoji('📋')
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId('schedule_alert')
+          .setLabel(lang === 'ar' ? '🔔 تنبيه مجدول' : '🔔 Scheduled Alert')
+          .setEmoji('🔔')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!hasPermission)
+      );
+
+    const row2 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('schedule_delete')
+          .setLabel(lang === 'ar' ? '🗑️ حذف جدول' : '🗑️ Delete Schedule')
+          .setEmoji('🗑️')
+          .setStyle(ButtonStyle.Danger)
+          .setDisabled(!hasPermission || !schedules || schedules.length === 0),
+        new ButtonBuilder()
+          .setCustomId('back_main')
+          .setLabel(lang === 'ar' ? '◀️ القائمة الرئيسية' : '◀️ Main Menu')
           .setStyle(ButtonStyle.Secondary)
       );
 

@@ -109,7 +109,7 @@ pm2 startup
 After bot starts:
 
 1. ✅ Invite bot to your server (with proper permissions)
-2. ✅ Run `/panel` command
+2. ✅ Run `/dang` command
 3. ✅ Set yourself as owner: Go to Permissions menu
 4. ✅ Test language switcher button
 5. ✅ Add a test booking

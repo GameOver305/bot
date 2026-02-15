@@ -4,7 +4,7 @@ import db from '../utils/database.js';
 
 export default {
   data: new SlashCommandBuilder()
-    .setName('panel')
+    .setName('dang')
     .setDescription('Open the main control panel / فتح لوحة التحكم الرئيسية'),
 
   async execute(interaction) {
@@ -16,7 +16,7 @@ export default {
       const panel = ButtonManager.createMainMenu(lang);
       await interaction.reply(panel);
     } catch (error) {
-      console.error('Error executing panel command:', error);
+      console.error('Error executing dang command:', error);
       await interaction.reply({ 
         content: 'حدث خطأ أثناء فتح لوحة التحكم', 
         ephemeral: true 

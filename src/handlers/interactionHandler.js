@@ -45,6 +45,20 @@ export async function handleButtonInteraction(interaction) {
       await interaction.update(ButtonManager.createStatsMenu(lang));
     }
 
+    // New Main Menu Items
+    else if (customId === 'menu_members') {
+      await interaction.update(ButtonManager.createMembersMenu(userId, lang));
+    }
+    else if (customId === 'menu_ministries') {
+      await interaction.update(ButtonManager.createMinistriesMenu(userId, lang));
+    }
+    else if (customId === 'menu_logs') {
+      await interaction.update(ButtonManager.createLogsMenu(userId, lang));
+    }
+    else if (customId === 'menu_schedule') {
+      await interaction.update(ButtonManager.createScheduleMenu(userId, lang));
+    }
+
     // Back buttons
     else if (customId === 'back_main') {
       await interaction.update(ButtonManager.createMainMenu(lang));
@@ -349,6 +363,113 @@ export async function handleButtonInteraction(interaction) {
         return;
       }
       await toggleAutoRepeat(interaction, lang);
+    }
+
+    // === Members Management ===
+    else if (customId === 'member_add') {
+      if (!db.hasAlliancePermission(userId) && !db.isAdmin(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ صلاحية R4/R5 أو أدمن فقط' : '❌ R4/R5 or Admin only', ephemeral: true });
+        return;
+      }
+      await showNewAddMemberModal(interaction, lang);
+    }
+    else if (customId === 'member_remove') {
+      if (!db.hasAlliancePermission(userId) && !db.isAdmin(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ صلاحية R4/R5 أو أدمن فقط' : '❌ R4/R5 or Admin only', ephemeral: true });
+        return;
+      }
+      await showNewRemoveMemberModal(interaction, lang);
+    }
+    else if (customId === 'member_change_rank') {
+      if (!db.hasAlliancePermission(userId) && !db.isAdmin(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ صلاحية R4/R5 أو أدمن فقط' : '❌ R4/R5 or Admin only', ephemeral: true });
+        return;
+      }
+      await showNewChangeRankModal(interaction, lang);
+    }
+    else if (customId === 'member_list_all') {
+      await showAllMembersList(interaction, lang);
+    }
+    else if (customId === 'member_search') {
+      await showMemberSearchModal(interaction, lang);
+    }
+
+    // === Ministries Management ===
+    else if (customId === 'ministry_add') {
+      if (!db.isAdmin(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only', ephemeral: true });
+        return;
+      }
+      await showAddMinistryModal(interaction, lang);
+    }
+    else if (customId === 'ministry_view') {
+      await showMinistriesList(interaction, lang);
+    }
+    else if (customId === 'ministry_assign') {
+      if (!db.isAdmin(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only', ephemeral: true });
+        return;
+      }
+      await showAssignMinisterModal(interaction, lang);
+    }
+    else if (customId === 'ministry_schedule') {
+      if (!db.isAdmin(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only', ephemeral: true });
+        return;
+      }
+      await showScheduleActivityModal(interaction, lang);
+    }
+    else if (customId === 'ministry_delete') {
+      if (!db.isAdmin(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only', ephemeral: true });
+        return;
+      }
+      await showDeleteMinistryModal(interaction, lang);
+    }
+
+    // === Logs Management ===
+    else if (customId === 'logs_set_channel') {
+      if (!db.isAdmin(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only', ephemeral: true });
+        return;
+      }
+      await showSetLogChannelModal(interaction, lang);
+    }
+    else if (customId === 'logs_view_all') {
+      await showRecentLogs(interaction, lang);
+    }
+    else if (customId === 'logs_clear_channel') {
+      if (!db.isAdmin(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only', ephemeral: true });
+        return;
+      }
+      await removeLogChannel(interaction, lang);
+    }
+
+    // === Schedule Management ===
+    else if (customId === 'schedule_create') {
+      if (!db.isAdmin(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only', ephemeral: true });
+        return;
+      }
+      await showAdvancedScheduleModal(interaction, lang);
+    }
+    else if (customId === 'schedule_view_all') {
+      await showSchedulesList(interaction, lang);
+    }
+    else if (customId === 'schedule_alert') {
+      if (!db.isAdmin(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only', ephemeral: true });
+        return;
+      }
+      await showCreateScheduledAlertModal(interaction, lang);
+    }
+    else if (customId === 'schedule_delete') {
+      if (!db.isAdmin(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only', ephemeral: true });
+        return;
+      }
+      await showDeleteScheduleMenu(interaction, lang);
     }
 
   } catch (error) {
@@ -1411,4 +1532,196 @@ async function toggleAutoRepeat(interaction, lang) {
     content: lang === 'ar' ? '⚠️ هذه الميزة قيد التطوير' : '⚠️ This feature is under development',
     ephemeral: true
   });
+}
+
+// === New Members Management Functions (with different names to avoid conflicts) ===
+
+async function showNewAddMemberModal(interaction, lang) {
+  const modal = new ModalBuilder()
+    .setCustomId('modal_member_add')
+    .setTitle(lang === 'ar' ? 'إضافة عضو جديد' : 'Add New Member');
+
+  const userInput = new TextInputBuilder()
+    .setCustomId('member_user')
+    .setLabel(lang === 'ar' ? 'المستخدم (@منشن أو ID)' : 'User (@mention or ID)')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('@user or 123456789')
+    .setRequired(true);
+
+  const rankInput = new TextInputBuilder()
+    .setCustomId('member_rank')
+    .setLabel(lang === 'ar' ? 'الرتبة' : 'Rank')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('R1, R2, R3, R4, R5')
+    .setValue('R1')
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(userInput),
+    new ActionRowBuilder().addComponents(rankInput)
+  );
+
+  await interaction.showModal(modal);
+}
+
+async function showNewRemoveMemberModal(interaction, lang) {
+  const modal = new ModalBuilder()
+    .setCustomId('modal_member_remove')
+    .setTitle(lang === 'ar' ? 'إزالة عضو' : 'Remove Member');
+
+  const userInput = new TextInputBuilder()
+    .setCustomId('member_user')
+    .setLabel(lang === 'ar' ? 'المستخدم (@منشن أو ID)' : 'User (@mention or ID)')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('@user or 123456789')
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(userInput)
+  );
+
+  await interaction.showModal(modal);
+}
+
+async function showNewChangeRankModal(interaction, lang) {
+  const modal = new ModalBuilder()
+    .setCustomId('modal_member_rank')
+    .setTitle(lang === 'ar' ? 'تغيير رتبة عضو' : 'Change Member Rank');
+
+  const userInput = new TextInputBuilder()
+    .setCustomId('member_user')
+    .setLabel(lang === 'ar' ? 'المستخدم (@منشن أو ID)' : 'User (@mention or ID)')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('@user or 123456789')
+    .setRequired(true);
+
+  const rankInput = new TextInputBuilder()
+    .setCustomId('member_rank')
+    .setLabel(lang === 'ar' ? 'الرتبة الجديدة' : 'New Rank')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('R1, R2, R3, R4, R5')
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(userInput),
+    new ActionRowBuilder().addComponents(rankInput)
+  );
+
+  await interaction.showModal(modal);
+}
+
+async function showAllMembersList(interaction, lang) {
+  const alliance = db.getAlliance();
+  const { EmbedBuilder } = await import('discord.js');
+
+  if (!alliance.members || alliance.members.length === 0) {
+    await interaction.reply({ 
+      content: lang === 'ar' ? '❌ لا يوجد أعضاء' : '❌ No members', 
+      ephemeral: true 
+    });
+    return;
+  }
+
+  // Group by rank
+  const byRank = {};
+  alliance.members.forEach(m => {
+    if (!byRank[m.rank]) byRank[m.rank] = [];
+    byRank[m.rank].push(m);
+  });
+
+  const embed = new EmbedBuilder()
+    .setTitle(lang === 'ar' ? `👥 جميع الأعضاء (${alliance.members.length})` : `👥 All Members (${alliance.members.length})`)
+    .setColor('#3498db')
+    .setTimestamp();
+
+  for (const rank of ['R5', 'R4', 'R3', 'R2', 'R1']) {
+    if (byRank[rank] && byRank[rank].length > 0) {
+      const members = byRank[rank].map((m, i) => {
+        const joinDate = new Date(m.joinedAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US');
+        return `${i + 1}. <@${m.id}> - ${joinDate}`;
+      }).join('\n');
+      
+      embed.addFields({
+        name: `⭐ ${rank} (${byRank[rank].length})`,
+        value: members,
+        inline: false
+      });
+    }
+  }
+
+  await interaction.reply({ embeds: [embed], ephemeral: true });
+}
+
+async function showMemberSearchModal(interaction, lang) {
+  const modal = new ModalBuilder()
+    .setCustomId('modal_member_search')
+    .setTitle(lang === 'ar' ? 'بحث عن عضو' : 'Search Member');
+
+  const searchInput = new TextInputBuilder()
+    .setCustomId('search_query')
+    .setLabel(lang === 'ar' ? 'اسم المستخدم أو ID' : 'Username or ID')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder(lang === 'ar' ? 'اكتب للبحث...' : 'Type to search...')
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(searchInput)
+  );
+
+  await interaction.showModal(modal);
+}
+
+async function showDeleteMinistryModal(interaction, lang) {
+  const ministries = db.getMinistries();
+  
+  if (!ministries || ministries.length === 0) {
+    await interaction.reply({
+      content: lang === 'ar' ? '❌ لا توجد وزارات لحذفها' : '❌ No ministries to delete',
+      ephemeral: true
+    });
+    return;
+  }
+
+  const modal = new ModalBuilder()
+    .setCustomId('modal_ministry_delete')
+    .setTitle(lang === 'ar' ? 'حذف وزارة' : 'Delete Ministry');
+
+  const nameInput = new TextInputBuilder()
+    .setCustomId('ministry_name')
+    .setLabel(lang === 'ar' ? 'اسم الوزارة' : 'Ministry Name')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder(lang === 'ar' ? 'أدخل اسم الوزارة...' : 'Enter ministry name...')
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(nameInput)
+  );
+
+  await interaction.showModal(modal);
+}
+
+async function showAssignMinisterModal(interaction, lang) {
+  const modal = new ModalBuilder()
+    .setCustomId('modal_ministry_assign')
+    .setTitle(lang === 'ar' ? 'تعيين وزير' : 'Assign Minister');
+
+  const ministryInput = new TextInputBuilder()
+    .setCustomId('ministry_name')
+    .setLabel(lang === 'ar' ? 'اسم الوزارة' : 'Ministry Name')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
+
+  const userInput = new TextInputBuilder()
+    .setCustomId('minister_user')
+    .setLabel(lang === 'ar' ? 'المستخدم (@منشن أو ID)' : 'User (@mention or ID)')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('@user or 123456789')
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(ministryInput),
+    new ActionRowBuilder().addComponents(userInput)
+  );
+
+  await interaction.showModal(modal);
 }

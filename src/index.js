@@ -77,7 +77,7 @@ client.on(Events.ClientReady, async () => {
 
   // Set presence
   client.user.setPresence({
-    activities: [{ name: '/panel للبدء | /panel to start', type: 0 }],
+    activities: [{ name: '/dang للبدء | /dang to start', type: 0 }],
     status: 'online',
   });
 

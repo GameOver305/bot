@@ -56,6 +56,26 @@ export async function handleModalSubmit(interaction) {
     else if (customId === 'advanced_schedule_modal') {
       await processAdvancedSchedule(interaction, userId, lang);
     }
+    // New Member Management Modals
+    else if (customId === 'modal_member_add') {
+      await processAddMemberNew(interaction, userId, lang);
+    }
+    else if (customId === 'modal_member_remove') {
+      await processRemoveMemberNew(interaction, userId, lang);
+    }
+    else if (customId === 'modal_member_rank') {
+      await processChangeRankNew(interaction, userId, lang);
+    }
+    else if (customId === 'modal_member_search') {
+      await processMemberSearch(interaction, userId, lang);
+    }
+    // New Ministry Management Modals
+    else if (customId === 'modal_ministry_delete') {
+      await processDeleteMinistry(interaction, userId, lang);
+    }
+    else if (customId === 'modal_ministry_assign') {
+      await processAssignMinister(interaction, userId, lang);
+    }
   } catch (error) {
     console.error('Error handling modal submit:', error);
     await interaction.reply({ 
@@ -693,4 +713,262 @@ async function processAdvancedSchedule(interaction, userId, lang) {
   });
 }
 
-export { scheduleReminders, formatTimeRemaining };
+// === New Member Management Processors ===
+
+async function processAddMemberNew(interaction, userId, lang) {
+  // Check permissions
+  if (!db.hasAlliancePermission(userId, ['R4', 'R5'])) {
+    await interaction.reply({ 
+      content: lang === 'ar' ? '❌ يجب أن تكون R4 أو R5' : '❌ Must be R4 or R5', 
+      ephemeral: true 
+    });
+    return;
+  }
+
+  const userInput = interaction.fields.getTextInputValue('member_user').trim();
+  const rank = interaction.fields.getTextInputValue('member_rank').trim().toUpperCase();
+
+  // Validate rank
+  if (!['R1', 'R2', 'R3', 'R4', 'R5'].includes(rank)) {
+    await interaction.reply({ 
+      content: lang === 'ar' ? '❌ الرتبة غير صحيحة. استخدم: R1, R2, R3, R4, R5' : '❌ Invalid rank. Use: R1, R2, R3, R4, R5', 
+      ephemeral: true 
+    });
+    return;
+  }
+
+  // Extract user ID from mention or direct ID
+  const mentionMatch = userInput.match(/^<@!?(\d+)>$/);
+  const targetUserId = mentionMatch ? mentionMatch[1] : userInput;
+
+  if (!/^\d+$/.test(targetUserId)) {
+    await interaction.reply({ 
+      content: lang === 'ar' ? '❌ معرّف المستخدم غير صحيح' : '❌ Invalid user ID', 
+      ephemeral: true 
+    });
+    return;
+  }
+
+  // Add member
+  const result = db.addMember(targetUserId, rank);
+  db.addAllianceLog('member_add', userId, { targetUserId, rank });
+
+  await interaction.reply({ 
+    content: lang === 'ar' 
+      ? `✅ تمت إضافة <@${targetUserId}> برتبة ${rank}` 
+      : `✅ Added <@${targetUserId}> with rank ${rank}`, 
+    ephemeral: true 
+  });
+}
+
+async function processRemoveMemberNew(interaction, userId, lang) {
+  // Check permissions
+  if (!db.hasAlliancePermission(userId, ['R4', 'R5'])) {
+    await interaction.reply({ 
+      content: lang === 'ar' ? '❌ يجب أن تكون R4 أو R5' : '❌ Must be R4 or R5', 
+      ephemeral: true 
+    });
+    return;
+  }
+
+  const userInput = interaction.fields.getTextInputValue('member_user').trim();
+
+  // Extract user ID from mention or direct ID
+  const mentionMatch = userInput.match(/^<@!?(\d+)>$/);
+  const targetUserId = mentionMatch ? mentionMatch[1] : userInput;
+
+  if (!/^\d+$/.test(targetUserId)) {
+    await interaction.reply({ 
+      content: lang === 'ar' ? '❌ معرّف المستخدم غير صحيح' : '❌ Invalid user ID', 
+      ephemeral: true 
+    });
+    return;
+  }
+
+  // Remove member
+  const result = db.removeMember(targetUserId);
+  if (!result.success) {
+    await interaction.reply({ 
+      content: lang === 'ar' ? '❌ العضو غير موجود' : '❌ Member not found', 
+      ephemeral: true 
+    });
+    return;
+  }
+
+  db.addAllianceLog('member_remove', userId, { targetUserId });
+
+  await interaction.reply({ 
+    content: lang === 'ar' 
+      ? `✅ تمت إزالة <@${targetUserId}>` 
+      : `✅ Removed <@${targetUserId}>`, 
+    ephemeral: true 
+  });
+}
+
+async function processChangeRankNew(interaction, userId, lang) {
+  // Check permissions
+  if (!db.hasAlliancePermission(userId, ['R4', 'R5'])) {
+    await interaction.reply({ 
+      content: lang === 'ar' ? '❌ يجب أن تكون R4 أو R5' : '❌ Must be R4 or R5', 
+      ephemeral: true 
+    });
+    return;
+  }
+
+  const userInput = interaction.fields.getTextInputValue('member_user').trim();
+  const rank = interaction.fields.getTextInputValue('member_rank').trim().toUpperCase();
+
+  // Validate rank
+  if (!['R1', 'R2', 'R3', 'R4', 'R5'].includes(rank)) {
+    await interaction.reply({ 
+      content: lang === 'ar' ? '❌ الرتبة غير صحيحة. استخدم: R1, R2, R3, R4, R5' : '❌ Invalid rank. Use: R1, R2, R3, R4, R5', 
+      ephemeral: true 
+    });
+    return;
+  }
+
+  // Extract user ID from mention or direct ID
+  const mentionMatch = userInput.match(/^<@!?(\d+)>$/);
+  const targetUserId = mentionMatch ? mentionMatch[1] : userInput;
+
+  if (!/^\d+$/.test(targetUserId)) {
+    await interaction.reply({ 
+      content: lang === 'ar' ? '❌ معرّف المستخدم غير صحيح' : '❌ Invalid user ID', 
+      ephemeral: true 
+    });
+    return;
+  }
+
+  // Change rank
+  const result = db.changeMemberRank(targetUserId, rank);
+  if (!result.success) {
+    await interaction.reply({ 
+      content: lang === 'ar' ? '❌ العضو غير موجود' : '❌ Member not found', 
+      ephemeral: true 
+    });
+    return;
+  }
+
+  db.addAllianceLog('member_rank_change', userId, { targetUserId, rank });
+
+  await interaction.reply({ 
+    content: lang === 'ar' 
+      ? `✅ تم تغيير رتبة <@${targetUserId}> إلى ${rank}` 
+      : `✅ Changed <@${targetUserId}> rank to ${rank}`, 
+    ephemeral: true 
+  });
+}
+
+async function processMemberSearch(interaction, userId, lang) {
+  const query = interaction.fields.getTextInputValue('search_query').trim().toLowerCase();
+  const alliance = db.getAlliance();
+  const { EmbedBuilder } = await import('discord.js');
+
+  if (!alliance.members || alliance.members.length === 0) {
+    await interaction.reply({ 
+      content: lang === 'ar' ? '❌ لا يوجد أعضاء' : '❌ No members', 
+      ephemeral: true 
+    });
+    return;
+  }
+
+  // Try to match by ID first
+  const byId = alliance.members.filter(m => m.id.includes(query));
+  
+  if (byId.length === 0) {
+    await interaction.reply({ 
+      content: lang === 'ar' ? '❌ لم يتم العثور على نتائج' : '❌ No results found', 
+      ephemeral: true 
+    });
+    return;
+  }
+
+  const embed = new EmbedBuilder()
+    .setTitle(lang === 'ar' ? `🔍 نتائج البحث (${byId.length})` : `🔍 Search Results (${byId.length})`)
+    .setColor('#3498db')
+    .setTimestamp();
+
+  const results = byId.slice(0, 10).map((m, i) => {
+    const joinDate = new Date(m.joinedAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US');
+    return `${i + 1}. <@${m.id}> - ${m.rank} - ${joinDate}`;
+  }).join('\n');
+
+  embed.setDescription(results);
+
+  await interaction.reply({ embeds: [embed], ephemeral: true });
+}
+
+// === New Ministry Management Processors ===
+
+async function processDeleteMinistry(interaction, userId, lang) {
+  if (!db.checkPermission(userId, 'admin')) {
+    await interaction.reply({ 
+      content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only', 
+      ephemeral: true 
+    });
+    return;
+  }
+
+  const name = interaction.fields.getTextInputValue('ministry_name').trim();
+  const result = db.deleteMinistry(name);
+
+  if (!result.success) {
+    await interaction.reply({ 
+      content: lang === 'ar' ? '❌ الوزارة غير موجودة' : '❌ Ministry not found', 
+      ephemeral: true 
+    });
+    return;
+  }
+
+  db.addAllianceLog('ministry_delete', userId, { name });
+
+  await interaction.reply({ 
+    content: lang === 'ar' ? `✅ تم حذف وزارة "${name}"` : `✅ Deleted ministry "${name}"`, 
+    ephemeral: true 
+  });
+}
+
+async function processAssignMinister(interaction, userId, lang) {
+  if (!db.checkPermission(userId, 'admin')) {
+    await interaction.reply({ 
+      content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only', 
+      ephemeral: true 
+    });
+    return;
+  }
+
+  const name = interaction.fields.getTextInputValue('ministry_name').trim();
+  const userInput = interaction.fields.getTextInputValue('minister_user').trim();
+
+  // Extract user ID from mention or direct ID
+  const mentionMatch = userInput.match(/^<@!?(\d+)>$/);
+  const ministerId = mentionMatch ? mentionMatch[1] : userInput;
+
+  if (!/^\d+$/.test(ministerId)) {
+    await interaction.reply({ 
+      content: lang === 'ar' ? '❌ معرّف المستخدم غير صحيح' : '❌ Invalid user ID', 
+      ephemeral: true 
+    });
+    return;
+  }
+
+  const result = db.assignMinister(name, ministerId);
+
+  if (!result.success) {
+    await interaction.reply({ 
+      content: lang === 'ar' ? '❌ الوزارة غير موجودة' : '❌ Ministry not found', 
+      ephemeral: true 
+    });
+    return;
+  }
+
+  db.addAllianceLog('ministry_assign', userId, { name, ministerId });
+
+  await interaction.reply({ 
+    content: lang === 'ar' 
+      ? `✅ تم تعيين <@${ministerId}> وزيراً لـ "${name}"` 
+      : `✅ Assigned <@${ministerId}> as minister of "${name}"`, 
+    ephemeral: true 
+  });
+}
+
