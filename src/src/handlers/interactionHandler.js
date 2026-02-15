@@ -65,176 +65,7 @@ export async function handleButtonInteraction(interaction) {
       await showAllAppointments(interaction, lang);
     }
     else if (customId === 'appointment_delete') {
-      // عرض قائمة اختيار نوع الحذف أولاً
-      await interaction.update(ButtonManager.createDeleteAppointmentsMenu(interaction.guildId, 'building', lang));
-    }
-
-    // ============ معالجات حذف المواعيد المحسنة ============
-    else if (customId.startsWith('appointment_delete_menu_')) {
-      const type = customId.replace('appointment_delete_menu_', '');
-      await interaction.update(ButtonManager.createDeleteAppointmentsMenu(interaction.guildId, type, lang));
-    }
-    else if (customId.startsWith('delete_all_')) {
-      const type = customId.replace('delete_all_', '');
-      if (!db.isAdmin(userId)) {
-        await interaction.reply({ content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only', ephemeral: true });
-        return;
-      }
-      await interaction.update(ButtonManager.createConfirmDeleteAllMenu(type, lang));
-    }
-    else if (customId.startsWith('confirm_delete_all_')) {
-      const type = customId.replace('confirm_delete_all_', '');
-      if (!db.isAdmin(userId)) {
-        await interaction.reply({ content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only', ephemeral: true });
-        return;
-      }
-      // حذف جميع المواعيد
-      db.clearGuildBookings(interaction.guildId, type);
-      await interaction.update(ButtonManager.createMinistryAppointmentsMenu(lang));
-      await interaction.followUp({ 
-        content: lang === 'ar' 
-          ? `✅ تم حذف جميع مواعيد ${type === 'building' ? 'البناء' : type === 'research' ? 'البحث' : 'التدريب'} بنجاح!`
-          : `✅ All ${type} appointments deleted successfully!`,
-        ephemeral: true 
-      });
-    }
-    else if (customId.startsWith('delete_select_')) {
-      const type = customId.replace('delete_select_', '');
-      await interaction.update(ButtonManager.createSelectDeleteMenu(interaction.guildId, type, lang));
-    }
-
-    // ============ معالجات نقل الأزرار مع موافقة/رفض ============
-    else if (customId === 'confirm_button_move') {
-      if (!db.isOwner(userId)) {
-        await interaction.reply({ content: lang === 'ar' ? '❌ المالك فقط' : '❌ Owner only', ephemeral: true });
-        return;
-      }
-      const pendingMove = db.getPendingButtonMove(interaction.guildId);
-      if (!pendingMove) {
-        await interaction.reply({ content: lang === 'ar' ? '❌ لا يوجد تغيير معلق' : '❌ No pending change', ephemeral: true });
-        return;
-      }
-      // تطبيق النقل
-      const layout = db.getButtonLayout();
-      const { fromRow, fromCol, toRow, toCol } = pendingMove;
-      
-      // تبديل الأزرار
-      const temp = layout.rows[fromRow][fromCol];
-      layout.rows[fromRow][fromCol] = layout.rows[toRow][toCol];
-      layout.rows[toRow][toCol] = temp;
-      
-      db.updateButtonLayout(layout);
-      db.clearPendingButtonMove(interaction.guildId);
-      
-      await interaction.update(ButtonManager.createButtonLayoutMenu(userId, lang));
-      await interaction.followUp({ 
-        content: lang === 'ar' ? '✅ تم تطبيق التغيير بنجاح!' : '✅ Change applied successfully!',
-        ephemeral: true 
-      });
-    }
-    else if (customId === 'reject_button_move') {
-      db.clearPendingButtonMove(interaction.guildId);
-      await interaction.update(ButtonManager.createButtonLayoutMenu(userId, lang));
-      await interaction.followUp({ 
-        content: lang === 'ar' ? '❌ تم رفض التغيير' : '❌ Change rejected',
-        ephemeral: true 
-      });
-    }
-
-    // ============ معالجات تعديل النصوص ============
-    else if (customId === 'owner_texts') {
-      if (!db.isOwner(userId)) {
-        await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
-        return;
-      }
-      await interaction.update(ButtonManager.createEditTextsMenu(userId, lang));
-    }
-
-    // ============ ربط التحالف تلقائياً ============
-    else if (customId === 'guild_alliance_link') {
-      await interaction.update(ButtonManager.createGuildAllianceLinkMenu(interaction.guildId, lang));
-    }
-    else if (customId === 'guild_sync_members') {
-      if (!db.isAdmin(userId)) {
-        await interaction.reply({ content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only', ephemeral: true });
-        return;
-      }
-      await interaction.deferReply({ ephemeral: true });
-      
-      try {
-        // جلب أعضاء السيرفر
-        const guild = interaction.guild;
-        await guild.members.fetch();
-        const members = guild.members.cache.filter(m => !m.user.bot);
-        
-        const discordMembers = members.map(m => ({
-          id: m.id,
-          username: m.user.username,
-          displayName: m.displayName
-        }));
-        
-        const result = db.syncGuildMembers(interaction.guildId, discordMembers);
-        
-        await interaction.editReply({
-          content: lang === 'ar'
-            ? `✅ **تمت المزامنة بنجاح!**\n\n` +
-              `➕ **أعضاء جدد:** ${result.added}\n` +
-              `🔄 **تم تحديثهم:** ${result.updated}`
-            : `✅ **Sync completed!**\n\n` +
-              `➕ **New members:** ${result.added}\n` +
-              `🔄 **Updated:** ${result.updated}`
-        });
-      } catch (error) {
-        await interaction.editReply({
-          content: lang === 'ar' ? '❌ حدث خطأ أثناء المزامنة' : '❌ Error during sync'
-        });
-      }
-    }
-    else if (customId === 'guild_toggle_autosync') {
-      if (!db.isAdmin(userId)) {
-        await interaction.reply({ content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only', ephemeral: true });
-        return;
-      }
-      const guildAlliance = db.getGuildAlliance(interaction.guildId);
-      guildAlliance.autoSync = !guildAlliance.autoSync;
-      db.saveGuildAlliance(interaction.guildId, guildAlliance);
-      await interaction.update(ButtonManager.createGuildAllianceLinkMenu(interaction.guildId, lang));
-    }
-    else if (customId === 'guild_alliance_register') {
-      if (!db.isAdmin(userId)) {
-        await interaction.reply({ content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only', ephemeral: true });
-        return;
-      }
-      // عرض modal لتسجيل التحالف للسيرفر
-      const modal = new ModalBuilder()
-        .setCustomId('modal_guild_alliance_register')
-        .setTitle(lang === 'ar' ? '📝 تسجيل التحالف' : '📝 Register Alliance');
-
-      const nameInput = new TextInputBuilder()
-        .setCustomId('alliance_name')
-        .setLabel(lang === 'ar' ? 'اسم التحالف' : 'Alliance Name')
-        .setStyle(TextInputStyle.Short)
-        .setRequired(true);
-
-      const tagInput = new TextInputBuilder()
-        .setCustomId('alliance_tag')
-        .setLabel(lang === 'ar' ? 'تاغ التحالف (مثال: [ABC])' : 'Alliance Tag (e.g., [ABC])')
-        .setStyle(TextInputStyle.Short)
-        .setRequired(false);
-
-      const descInput = new TextInputBuilder()
-        .setCustomId('alliance_desc')
-        .setLabel(lang === 'ar' ? 'وصف التحالف (اختياري)' : 'Description (optional)')
-        .setStyle(TextInputStyle.Paragraph)
-        .setRequired(false);
-
-      modal.addComponents(
-        new ActionRowBuilder().addComponents(nameInput),
-        new ActionRowBuilder().addComponents(tagInput),
-        new ActionRowBuilder().addComponents(descInput)
-      );
-
-      await interaction.showModal(modal);
+      await showDeleteAppointmentModal(interaction, lang);
     }
 
     // Reminder Edit
@@ -1274,12 +1105,17 @@ export async function handleButtonInteraction(interaction) {
 }
 
 async function showBookingModal(interaction, type, lang) {
-  const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, StringSelectMenuBuilder } = await import('discord.js');
   const modal = new ModalBuilder()
     .setCustomId(`booking_modal_${type}`)
     .setTitle(t(lang, `bookings.${type}`));
 
-  // Alliance Name
+  const memberNameInput = new TextInputBuilder()
+    .setCustomId('member_name')
+    .setLabel(lang === 'ar' ? 'اسم العضو' : 'Member Name')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder(lang === 'ar' ? 'أدخل اسم العضو' : 'Enter member name')
+    .setRequired(true);
+
   const allianceInput = new TextInputBuilder()
     .setCustomId('alliance_name')
     .setLabel(lang === 'ar' ? 'اسم التحالف' : 'Alliance Name')
@@ -1287,60 +1123,20 @@ async function showBookingModal(interaction, type, lang) {
     .setPlaceholder(lang === 'ar' ? 'أدخل اسم التحالف' : 'Enter alliance name')
     .setRequired(true);
 
-  // In-game Name
-  const memberNameInput = new TextInputBuilder()
-    .setCustomId('member_name')
-    .setLabel(lang === 'ar' ? 'اسم اللاعب في اللعبة' : 'In-game Name')
+  const durationInput = new TextInputBuilder()
+    .setCustomId('duration')
+    .setLabel(lang === 'ar' ? 'عدد الأيام' : 'Number of Days')
     .setStyle(TextInputStyle.Short)
-    .setPlaceholder(interaction.user.username)
+    .setPlaceholder('1')
     .setRequired(true);
 
-  // Game ID
-  const gameIdInput = new TextInputBuilder()
-    .setCustomId('game_id')
-    .setLabel(lang === 'ar' ? 'معرف اللعبة (Game ID)' : 'Game ID')
+  const startDateInput = new TextInputBuilder()
+    .setCustomId('start_date')
+    .setLabel(lang === 'ar' ? 'تاريخ البداية (YYYY-MM-DD)' : 'Start Date (YYYY-MM-DD)')
     .setStyle(TextInputStyle.Short)
-    .setPlaceholder('123456789')
+    .setPlaceholder('2024-02-15')
     .setRequired(true);
 
-  // Speedup Amount (contextual)
-  let speedupLabel = '';
-  if (type === 'building') speedupLabel = lang === 'ar' ? 'كمية تسريع البناء' : 'Building Speedup Amount';
-  else if (type === 'training') speedupLabel = lang === 'ar' ? 'كمية تسريع التدريب' : 'Training Speedup Amount';
-  else if (type === 'research') speedupLabel = lang === 'ar' ? 'كمية تسريع البحث' : 'Research Speedup Amount';
-  const speedupInput = new TextInputBuilder()
-    .setCustomId('speedup_amount')
-    .setLabel(speedupLabel)
-    .setStyle(TextInputStyle.Short)
-    .setPlaceholder('0')
-    .setRequired(false);
-
-  // Time (dropdown)
-  const timeSlots = Array.from({ length: 48 }, (_, i) => {
-    const hour = String(Math.floor(i / 2)).padStart(2, '0');
-    const min = i % 2 === 0 ? '00' : '30';
-    return `${hour}:${min}`;
-  });
-  const timeMenu = new StringSelectMenuBuilder()
-    .setCustomId('booking_time')
-    .setPlaceholder(lang === 'ar' ? 'اختر الوقت' : 'Select time')
-    .addOptions(timeSlots.map(slot => ({
-      label: slot,
-      value: slot
-    })));
-
-  // Preferred Time (dropdown, multi-select)
-  const preferredMenu = new StringSelectMenuBuilder()
-    .setCustomId('preferred_time')
-    .setPlaceholder(lang === 'ar' ? 'اختر الوقت المفضل (اختياري)' : 'Select preferred time (optional)')
-    .setMinValues(0)
-    .setMaxValues(3)
-    .addOptions(timeSlots.map(slot => ({
-      label: slot,
-      value: slot
-    })));
-
-  // Notes (optional)
   const notesInput = new TextInputBuilder()
     .setCustomId('notes')
     .setLabel(lang === 'ar' ? 'ملاحظات (اختياري)' : 'Notes (optional)')
@@ -1348,12 +1144,10 @@ async function showBookingModal(interaction, type, lang) {
     .setRequired(false);
 
   modal.addComponents(
-    new ActionRowBuilder().addComponents(allianceInput),
     new ActionRowBuilder().addComponents(memberNameInput),
-    new ActionRowBuilder().addComponents(gameIdInput),
-    new ActionRowBuilder().addComponents(speedupInput),
-    new ActionRowBuilder().addComponents(timeMenu),
-    new ActionRowBuilder().addComponents(preferredMenu),
+    new ActionRowBuilder().addComponents(allianceInput),
+    new ActionRowBuilder().addComponents(durationInput),
+    new ActionRowBuilder().addComponents(startDateInput),
     new ActionRowBuilder().addComponents(notesInput)
   );
 
@@ -1362,36 +1156,39 @@ async function showBookingModal(interaction, type, lang) {
 
 async function showBookingsList(interaction, type, lang) {
   const bookings = db.getBookings(type);
+  
   if (bookings.length === 0) {
-    await interaction.reply({
-      content: t(lang, 'bookings.empty'),
-      ephemeral: true
+    await interaction.reply({ 
+      content: t(lang, 'bookings.empty'), 
+      ephemeral: true 
     });
     return;
   }
 
   let message = `**📋 ${t(lang, `bookings.${type}`)}**\n\n`;
+  
   bookings.forEach((booking, index) => {
+    const start = new Date(booking.startDate).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US');
+    const end = new Date(booking.endDate).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US');
+    const duration = booking.duration || Math.ceil((new Date(booking.endDate) - new Date(booking.startDate)) / (1000 * 60 * 60 * 24));
+    
     message += `**${index + 1}.**\n`;
-    message += `${lang === 'ar' ? '👤 اللاعب' : '👤 Player'}: ${booking.memberName || booking.userName || 'N/A'}\n`;
-    message += `${lang === 'ar' ? '🆔 معرف اللعبة' : '🆔 Game ID'}: ${booking.gameId || 'N/A'}\n`;
-    message += `${lang === 'ar' ? '🤝 التحالف' : '🤝 Alliance'}: ${booking.allianceName || (lang === 'ar' ? 'غير محدد' : 'Not specified')}\n`;
-    message += `${lang === 'ar' ? '⏰ الوقت' : '⏰ Time'}: ${booking.bookingTime || (lang === 'ar' ? 'غير محدد' : 'Not specified')}\n`;
-    if (booking.preferredTime && booking.preferredTime.length > 0) {
-      message += `${lang === 'ar' ? '⭐ الوقت المفضل' : '⭐ Preferred Time'}: ${Array.isArray(booking.preferredTime) ? booking.preferredTime.join(', ') : booking.preferredTime}\n`;
-    }
-    if (booking.speedupAmount) {
-      message += `${lang === 'ar' ? '⚡ كمية التسريع' : '⚡ Speedup'}: ${booking.speedupAmount}\n`;
-    }
+    message += `${lang === 'ar' ? '👤 العضو' : '👤 Member'}: ${booking.memberName || booking.userName || 'N/A'}\n`;
+    message += `${lang === 'ar' ? '🆔 المعرف' : '🆔 ID'}: <@${booking.userId}>\n`;
+    message += `${lang === 'ar' ? '🤝 التحالف' : '🤝 Alliance'}: ${booking.allianceName || lang === 'ar' ? 'غير محدد' : 'Not specified'}\n`;
+    message += `${lang === 'ar' ? '📅 البداية' : '📅 Start'}: ${start}\n`;
+    message += `${lang === 'ar' ? '📅 النهاية' : '📅 End'}: ${end}\n`;
+    message += `${lang === 'ar' ? '⏱️ المدة' : '⏱️ Duration'}: ${duration} ${lang === 'ar' ? 'يوم' : 'day'}${duration > 1 ? 's' : ''}\n`;
+    
     if (booking.notes) {
       message += `${lang === 'ar' ? '📝 ملاحظات' : '📝 Notes'}: ${booking.notes}\n`;
     }
     message += '\n';
   });
 
-  await interaction.reply({
-    content: message,
-    ephemeral: true
+  await interaction.reply({ 
+    content: message, 
+    ephemeral: true 
   });
 }
 
@@ -3165,22 +2962,32 @@ async function moveButtonDirection(interaction, selectedPos, direction, userId, 
     return;
   }
   
-  // حفظ بيانات النقل المعلق للموافقة/الرفض
-  const buttonId = layout.rows[row][col];
-  const moveData = {
-    buttonId,
-    direction,
-    fromRow: row,
-    fromCol: col,
-    toRow: targetRow,
-    toCol: targetCol,
-    timestamp: Date.now()
-  };
+  // Ensure target row exists and has enough columns
+  while (layout.rows.length <= targetRow) {
+    layout.rows.push([]);
+  }
   
-  db.setPendingButtonMove(interaction.guildId, moveData);
+  // Swap buttons
+  const temp = layout.rows[row][col];
+  const target = layout.rows[targetRow]?.[targetCol];
   
-  // عرض شاشة التأكيد
-  await interaction.update(ButtonManager.createButtonMoveConfirmMenu(userId, lang, moveData));
+  if (target) {
+    layout.rows[row][col] = target;
+    layout.rows[targetRow][targetCol] = temp;
+  } else {
+    // If target doesn't exist, move to end of target row
+    layout.rows[row].splice(col, 1);
+    layout.rows[targetRow].push(temp);
+    targetCol = layout.rows[targetRow].length - 1;
+  }
+  
+  // Clean up empty rows
+  layout.rows = layout.rows.filter(r => r.length > 0);
+  
+  db.setButtonLayout(layout);
+  
+  const newSelected = `${targetRow},${targetCol}`;
+  await interaction.update(ButtonManager.createButtonLayoutMenu(userId, lang, newSelected));
 }
 
 // Handle select menu interactions
@@ -3304,73 +3111,6 @@ export async function handleSelectMenuInteraction(interaction) {
           : `✅ Set <#${channelId}> as log channel`, 
         ephemeral: true 
       });
-    }
-
-    // ============ معالجات حذف المواعيد المخصصة ============
-    else if (customId.startsWith('select_delete_booking_')) {
-      const type = customId.replace('select_delete_booking_', '');
-      const bookingId = interaction.values[0];
-      
-      // حذف الموعد المحدد
-      db.removeGuildBooking(interaction.guildId, type, bookingId);
-      
-      await interaction.update(ButtonManager.createSelectDeleteMenu(interaction.guildId, type, lang));
-      await interaction.followUp({ 
-        content: lang === 'ar' ? '✅ تم حذف الموعد بنجاح!' : '✅ Appointment deleted successfully!',
-        ephemeral: true 
-      });
-    }
-
-    // ============ معالجات تعديل النصوص ============
-    else if (customId === 'select_text_to_edit') {
-      if (!db.isOwner(userId)) {
-        await interaction.reply({ content: lang === 'ar' ? '❌ المالك فقط' : '❌ Owner only', ephemeral: true });
-        return;
-      }
-      const textKey = interaction.values[0];
-      
-      // عرض modal لتعديل النص
-      const textLabels = {
-        mainTitle: { ar: 'العنوان الرئيسي', en: 'Main Title' },
-        welcomeMessage: { ar: 'رسالة الترحيب', en: 'Welcome Message' },
-        allianceTitle: { ar: 'عنوان التحالف', en: 'Alliance Title' },
-        membersTitle: { ar: 'عنوان الأعضاء', en: 'Members Title' },
-        bookingsTitle: { ar: 'عنوان الحجوزات', en: 'Bookings Title' },
-        settingsTitle: { ar: 'عنوان الإعدادات', en: 'Settings Title' },
-        helpTitle: { ar: 'عنوان المساعدة', en: 'Help Title' },
-        statsTitle: { ar: 'عنوان الإحصائيات', en: 'Stats Title' },
-        permissionsTitle: { ar: 'عنوان الصلاحيات', en: 'Permissions Title' },
-        remindersTitle: { ar: 'عنوان التذكيرات', en: 'Reminders Title' }
-      };
-      
-      const currentTexts = db.getCustomTexts();
-      const currentText = currentTexts[textKey] || db.getDefaultTexts()[textKey] || { ar: '', en: '' };
-      const label = textLabels[textKey] ? textLabels[textKey][lang] : textKey;
-      
-      const modal = new ModalBuilder()
-        .setCustomId(`edit_text_modal_${textKey}`)
-        .setTitle(lang === 'ar' ? `تعديل: ${label}` : `Edit: ${label}`);
-
-      const arInput = new TextInputBuilder()
-        .setCustomId('text_ar')
-        .setLabel(lang === 'ar' ? 'النص العربي' : 'Arabic Text')
-        .setStyle(TextInputStyle.Short)
-        .setValue(currentText.ar || '')
-        .setRequired(true);
-
-      const enInput = new TextInputBuilder()
-        .setCustomId('text_en')
-        .setLabel(lang === 'ar' ? 'النص الإنجليزي' : 'English Text')
-        .setStyle(TextInputStyle.Short)
-        .setValue(currentText.en || '')
-        .setRequired(true);
-
-      modal.addComponents(
-        new ActionRowBuilder().addComponents(arInput),
-        new ActionRowBuilder().addComponents(enInput)
-      );
-
-      await interaction.showModal(modal);
     }
     
   } catch (error) {

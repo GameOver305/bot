@@ -80,10 +80,6 @@ export async function handleModalSubmit(interaction) {
     else if (customId === 'modal_guild_remove') {
       await processRemoveGuild(interaction, userId, lang);
     }
-    // Guild Alliance Registration Modal (Auto-link)
-    else if (customId === 'modal_guild_alliance_register') {
-      await processGuildAllianceRegister(interaction, userId, lang);
-    }
     // Alliance Registration Modal
     else if (customId === 'modal_alliance_register') {
       await processAllianceRegister(interaction, userId, lang);
@@ -118,10 +114,6 @@ export async function handleModalSubmit(interaction) {
     else if (customId.startsWith('text_edit_modal_')) {
       await processTextEdit(interaction, customId.replace('text_edit_modal_', ''), userId, lang);
     }
-    // New Text Edit Modal (from select menu)
-    else if (customId.startsWith('edit_text_modal_')) {
-      await processTextEditNew(interaction, customId.replace('edit_text_modal_', ''), userId, lang);
-    }
     // Security Modals
     else if (customId === 'security_ban_modal') {
       await processBanUser(interaction, userId, lang);
@@ -155,63 +147,71 @@ export async function handleModalSubmit(interaction) {
 async function processBooking(interaction, type, lang) {
   const memberName = interaction.fields.getTextInputValue('member_name');
   const allianceName = interaction.fields.getTextInputValue('alliance_name');
-  const gameId = interaction.fields.getTextInputValue('game_id');
-  const speedupAmount = interaction.fields.getTextInputValue('speedup_amount') || '';
-  const bookingTime = interaction.fields.getField('booking_time')?.value || interaction.fields.getTextInputValue('booking_time');
-  let preferredTime = interaction.fields.getField('preferred_time')?.values || [];
-  if (!Array.isArray(preferredTime)) preferredTime = preferredTime ? [preferredTime] : [];
+  const durationStr = interaction.fields.getTextInputValue('duration');
+  const startDateStr = interaction.fields.getTextInputValue('start_date');
   const notes = interaction.fields.getTextInputValue('notes') || '';
 
-  // تحقق من اختيار الوقت الرئيسي
-  if (!bookingTime) {
-    await interaction.reply({
-      content: lang === 'ar' ? '❌ يجب اختيار وقت الحجز' : '❌ You must select a booking time',
-      ephemeral: true
+  // Validate date format
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(startDateStr)) {
+    await interaction.reply({ 
+      content: lang === 'ar' 
+        ? '❌ تنسيق التاريخ غير صحيح. استخدم: YYYY-MM-DD (مثال: 2024-02-15)' 
+        : '❌ Invalid date format. Use: YYYY-MM-DD (example: 2024-02-15)', 
+      ephemeral: true 
     });
     return;
   }
 
-  // تاريخ اليوم (يتم الحجز لليوم الحالي)
-  const today = new Date();
-  const dateStr = today.toISOString().split('T')[0];
-
-  // منع الحجز المزدوج للوقت الرئيسي فقط
-  const bookings = db.getBookings(type);
-  const conflict = bookings.find(b => b.bookingTime === bookingTime && b.dateStr === dateStr);
-  if (conflict) {
-    await interaction.reply({
-      content: lang === 'ar' ? '❌ هذا الوقت محجوز بالفعل' : '❌ This time slot is already booked',
-      ephemeral: true
+  // Validate duration
+  const duration = parseInt(durationStr);
+  if (isNaN(duration) || duration < 1) {
+    await interaction.reply({ 
+      content: lang === 'ar' 
+        ? '❌ المدة يجب أن تكون رقم موجب' 
+        : '❌ Duration must be a positive number', 
+      ephemeral: true 
     });
     return;
   }
 
-  // إضافة الحجز
+  // Calculate dates
+  const startDate = new Date(startDateStr);
+  const endDate = new Date(startDate);
+  endDate.setDate(endDate.getDate() + duration);
+
+  // Check for conflicts
+  if (db.checkConflict(type, startDate, endDate)) {
+    await interaction.reply({ 
+      content: t(lang, 'bookings.conflict'), 
+      ephemeral: true 
+    });
+    return;
+  }
+
+  // Add booking
   const booking = db.addBooking(type, {
     userId: interaction.user.id,
     userName: interaction.user.username,
-    memberName,
-    allianceName,
-    gameId,
-    speedupAmount,
-    bookingTime,
-    preferredTime,
-    dateStr,
+    memberName: memberName,
+    allianceName: allianceName,
+    startDate: startDate.toISOString(),
+    endDate: endDate.toISOString(),
+    duration,
     notes,
-    status: 'active',
-    createdAt: new Date().toISOString()
+    status: 'active'
   });
 
-  // جدولة التذكيرات (اختياري)
+  // Schedule reminders
   scheduleReminders(interaction.client, booking, type, lang);
 
-  // تحديث الرسالة الأصلية
+  // Update the original message with new booking list
   await interaction.update(ButtonManager.createBookingTypeMenu(type, lang));
-
-  // رسالة نجاح
-  await interaction.followUp({
-    content: t(lang, 'bookings.success'),
-    ephemeral: true
+  
+  // Send success message
+  await interaction.followUp({ 
+    content: t(lang, 'bookings.success'), 
+    ephemeral: true 
   });
 }
 
@@ -1071,83 +1071,6 @@ async function processRemoveGuild(interaction, userId, lang) {
   });
 }
 
-// Process Guild Alliance Register (Auto-link feature)
-async function processGuildAllianceRegister(interaction, userId, lang) {
-  if (!db.isAdmin(userId)) {
-    await interaction.reply({ content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only', ephemeral: true });
-    return;
-  }
-
-  const name = interaction.fields.getTextInputValue('alliance_name').trim();
-  const tag = interaction.fields.getTextInputValue('alliance_tag')?.trim() || '';
-  const desc = interaction.fields.getTextInputValue('alliance_desc')?.trim() || '';
-
-  const guildId = interaction.guildId;
-
-  // إنشاء/تحديث تحالف السيرفر
-  const guildAlliance = db.getGuildAlliance(guildId);
-  guildAlliance.name = name;
-  guildAlliance.tag = tag;
-  guildAlliance.description = desc;
-  guildAlliance.leader = userId;
-  guildAlliance.autoSync = true;
-  guildAlliance.registeredAt = new Date().toISOString();
-
-  db.saveGuildAlliance(guildId, guildAlliance);
-
-  // مزامنة أعضاء السيرفر تلقائياً
-  const guild = interaction.guild;
-  if (guild) {
-    try {
-      await guild.members.fetch();
-      const members = guild.members.cache.filter(m => !m.user.bot);
-      
-      const discordMembers = members.map(m => ({
-        id: m.id,
-        username: m.user.username,
-        displayName: m.displayName
-      }));
-      
-      const syncResult = db.syncGuildMembers(guildId, discordMembers);
-      
-      const { ButtonManager } = await import('./buttonManager.js');
-      await interaction.reply({ 
-        content: lang === 'ar' 
-          ? `✅ **تم ربط التحالف بنجاح!**\n\n` +
-            `📛 **الاسم:** ${name}\n` +
-            `🏷️ **التاغ:** ${tag || '-'}\n` +
-            `👑 **القائد:** <@${userId}>\n\n` +
-            `🔄 **تمت المزامنة التلقائية:**\n` +
-            `➕ أعضاء جدد: ${syncResult.added}\n` +
-            `🔄 تم تحديثهم: ${syncResult.updated}`
-          : `✅ **Alliance linked successfully!**\n\n` +
-            `📛 **Name:** ${name}\n` +
-            `🏷️ **Tag:** ${tag || '-'}\n` +
-            `👑 **Leader:** <@${userId}>\n\n` +
-            `🔄 **Auto-sync completed:**\n` +
-            `➕ New members: ${syncResult.added}\n` +
-            `🔄 Updated: ${syncResult.updated}`,
-        ephemeral: true 
-      });
-    } catch (error) {
-      console.error('Error syncing guild members:', error);
-      await interaction.reply({ 
-        content: lang === 'ar' 
-          ? `✅ تم تسجيل التحالف "${name}" بنجاح!\n⚠️ لم تتم المزامنة التلقائية`
-          : `✅ Alliance "${name}" registered successfully!\n⚠️ Auto-sync failed`,
-        ephemeral: true 
-      });
-    }
-  } else {
-    await interaction.reply({ 
-      content: lang === 'ar' 
-        ? `✅ تم تسجيل التحالف "${name}" بنجاح!`
-        : `✅ Alliance "${name}" registered successfully!`,
-      ephemeral: true 
-    });
-  }
-}
-
 // Process Alliance Register
 async function processAllianceRegister(interaction, userId, lang) {
   const isR5OrAdmin = db.isAdmin(userId) || db.isOwner(userId) || (db.getAlliance().leader === userId);
@@ -1463,39 +1386,6 @@ async function processTextEdit(interaction, textType, userId, lang) {
     
     await interaction.reply({
       content: lang === 'ar' ? '✅ تم تحديث النص بنجاح!' : '✅ Text updated successfully!',
-      ephemeral: true
-    });
-  } catch (error) {
-    await interaction.reply({
-      content: lang === 'ar' 
-        ? `❌ خطأ في تحديث النص: ${error.message}` 
-        : `❌ Error updating text: ${error.message}`,
-      ephemeral: true
-    });
-  }
-}
-
-// Process Text Edit New (from select menu with Arabic and English inputs)
-async function processTextEditNew(interaction, textKey, userId, lang) {
-  if (!db.isOwner(userId)) {
-    return await interaction.reply({
-      content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission',
-      ephemeral: true
-    });
-  }
-  
-  const textAr = interaction.fields.getTextInputValue('text_ar');
-  const textEn = interaction.fields.getTextInputValue('text_en');
-  
-  try {
-    db.setCustomText(textKey, textAr, textEn);
-    
-    const { ButtonManager } = await import('./buttonManager.js');
-    
-    await interaction.reply({
-      content: lang === 'ar' 
-        ? `✅ تم تحديث النص بنجاح!\n\n**العربي:** ${textAr}\n**English:** ${textEn}`
-        : `✅ Text updated successfully!\n\n**Arabic:** ${textAr}\n**English:** ${textEn}`,
       ephemeral: true
     });
   } catch (error) {

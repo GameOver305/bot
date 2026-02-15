@@ -65,17 +65,13 @@ export class ButtonManager {
           .setStyle(ButtonStyle.Secondary)
       );
 
-    // Row 4: Help, Edit Description & Language
+    // Row 4: Help & Language
     const row4 = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
           .setCustomId('menu_help')
           .setLabel(lang === 'ar' ? '❓ المساعدة' : '❓ Help')
           .setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder()
-          .setCustomId('edit_description_main')
-          .setLabel(lang === 'ar' ? '📝 تعديل الشرح' : '📝 Edit Description')
-          .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
           .setCustomId('lang_switch')
           .setLabel(lang === 'ar' ? '🇺🇸 English' : '🇸🇦 العربية')
@@ -283,11 +279,7 @@ export class ButtonManager {
           .setCustomId('alliance_set_leader')
           .setLabel(lang === 'ar' ? '👑 تعيين قائد' : '👑 Set Leader')
           .setStyle(ButtonStyle.Primary)
-          .setDisabled(!hasAlliance),
-        new ButtonBuilder()
-          .setCustomId('guild_alliance_link')
-          .setLabel(lang === 'ar' ? '🔗 ربط تلقائي' : '🔗 Auto Link')
-          .setStyle(ButtonStyle.Success)
+          .setDisabled(!hasAlliance)
       );
 
     // Row 4: Navigation
@@ -308,7 +300,7 @@ export class ButtonManager {
 
   static createSettingsMenu(userId, lang = 'en') {
     const user = db.getUser(userId);
-        const isOwner = true; // كل مستخدم يتحكم في لوحته فقط
+    const isOwner = db.isOwner(userId);
     
     const embed = new EmbedBuilder()
       .setColor('#ffff00')
@@ -369,7 +361,17 @@ export class ButtonManager {
 
     const components = [row1, row2, row3];
 
-        // لم يعد هناك زر خاص للمالك فقط، كل مستخدم يرى لوحة تحكمه
+    // Add Owner Admin button if user is owner
+    if (isOwner) {
+      const ownerRow = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId('menu_owner_admin')
+            .setLabel(lang === 'ar' ? '👑 إدارة المالك' : '👑 Owner Admin')
+            .setStyle(ButtonStyle.Danger)
+        );
+      components.splice(2, 0, ownerRow); // Insert before navigation row
+    }
 
     return { embeds: [embed], components };
   }
@@ -455,7 +457,7 @@ export class ButtonManager {
 
   static createStatsMenu(lang = 'en') {
     const allBookings = db.getBookings();
-        const isOwner = db.isOwner(userId);
+    const alliance = db.getAlliance();
     const perms = db.getPermissions();
     
     const totalBookings = allBookings.building.length + allBookings.research.length + allBookings.training.length;
@@ -515,17 +517,7 @@ export class ButtonManager {
           inline: false
         },
         {
-        // إضافة زر إدارة المالك فقط إذا كان المستخدم مالكاً
-        if (isOwner) {
-          const ownerRow = new ActionRowBuilder()
-            .addComponents(
-              new ButtonBuilder()
-                .setCustomId('menu_owner_admin')
-                .setLabel(lang === 'ar' ? '👑 إدارة المالك' : '👑 Owner Admin')
-                .setStyle(ButtonStyle.Danger)
-            );
-          components.splice(2, 0, ownerRow); // Insert before navigation row
-        }
+          name: lang === 'ar' ? '⚙️ الإعدادات' : '⚙️ Settings',
           value: lang === 'ar'
             ? '• تغيير اللغة (عربي/إنجليزي)\n• تفعيل/تعطيل التذكيرات'
             : '• Change language\n• Toggle notifications',
@@ -1734,331 +1726,4 @@ export class ButtonManager {
       );
 
     return { embeds: [embed], components: [row] };
-  }
-
-  // ============ قائمة حذف المواعيد المحسنة ============
-  static createDeleteAppointmentsMenu(guildId, type, lang = 'en') {
-    const bookings = db.getGuildBookings(guildId, type) || [];
-    
-    const embed = new EmbedBuilder()
-      .setColor('#ff0000')
-      .setTitle(lang === 'ar' ? '🗑️ حذف المواعيد' : '🗑️ Delete Appointments')
-      .setDescription(lang === 'ar'
-        ? `**نوع الحجز:** ${type === 'building' ? '🏗️ البناء' : type === 'research' ? '🔬 البحث' : '⚔️ التدريب'}\n\n` +
-          'اختر طريقة الحذف:'
-        : `**Booking Type:** ${type === 'building' ? '🏗️ Building' : type === 'research' ? '🔬 Research' : '⚔️ Training'}\n\n` +
-          'Choose deletion method:')
-      .addFields({
-        name: lang === 'ar' ? '📊 إجمالي المواعيد' : '📊 Total Appointments',
-        value: bookings.length.toString(),
-        inline: true
-      })
-      .setTimestamp();
-
-    const row1 = new ActionRowBuilder()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId(`delete_all_${type}`)
-          .setLabel(lang === 'ar' ? '🗑️ حذف الكل' : '🗑️ Delete All')
-          .setStyle(ButtonStyle.Danger)
-          .setDisabled(bookings.length === 0),
-        new ButtonBuilder()
-          .setCustomId(`delete_select_${type}`)
-          .setLabel(lang === 'ar' ? '📋 حذف مخصص' : '📋 Custom Delete')
-          .setStyle(ButtonStyle.Primary)
-          .setDisabled(bookings.length === 0)
-      );
-
-    const row2 = new ActionRowBuilder()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId('menu_ministry_appointments')
-          .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
-          .setStyle(ButtonStyle.Secondary)
-      );
-
-    return { embeds: [embed], components: [row1, row2] };
-  }
-
-  // قائمة اختيار المواعيد للحذف المخصص
-  static createSelectDeleteMenu(guildId, type, lang = 'en') {
-    const bookings = db.getGuildBookings(guildId, type) || [];
-    
-    if (bookings.length === 0) {
-      const embed = new EmbedBuilder()
-        .setColor('#ffaa00')
-        .setTitle(lang === 'ar' ? '📋 لا توجد مواعيد' : '📋 No Appointments')
-        .setDescription(lang === 'ar' ? 'لا توجد مواعيد للحذف' : 'No appointments to delete');
-      
-      const row = new ActionRowBuilder()
-        .addComponents(
-          new ButtonBuilder()
-            .setCustomId('menu_ministry_appointments')
-            .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
-            .setStyle(ButtonStyle.Secondary)
-        );
-      
-      return { embeds: [embed], components: [row] };
-    }
-
-    const embed = new EmbedBuilder()
-      .setColor('#ff6b6b')
-      .setTitle(lang === 'ar' ? '📋 اختر الموعد للحذف' : '📋 Select Appointment to Delete')
-      .setDescription(lang === 'ar'
-        ? '👇 اختر الموعد الذي تريد حذفه من القائمة'
-        : '👇 Select the appointment to delete from the list')
-      .setTimestamp();
-
-    // إنشاء خيارات القائمة المنسدلة
-    const selectOptions = bookings.slice(0, 25).map((booking, index) => {
-      const date = booking.date || new Date(booking.startDate).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US');
-      const time = booking.time || '';
-      const userName = booking.userName || booking.memberName || 'Unknown';
-      return {
-        label: `${index + 1}. ${userName}`,
-        description: `${date} ${time}`.trim(),
-        value: booking.id
-      };
-    });
-
-    const selectMenu = new ActionRowBuilder()
-      .addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId(`select_delete_booking_${type}`)
-          .setPlaceholder(lang === 'ar' ? '📌 اختر موعداً للحذف...' : '📌 Select an appointment to delete...')
-          .addOptions(selectOptions)
-      );
-
-    const backRow = new ActionRowBuilder()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId(`appointment_delete_menu_${type}`)
-          .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
-          .setStyle(ButtonStyle.Secondary)
-      );
-
-    return { embeds: [embed], components: [selectMenu, backRow] };
-  }
-
-  // تأكيد حذف جميع المواعيد
-  static createConfirmDeleteAllMenu(type, lang = 'en') {
-    const embed = new EmbedBuilder()
-      .setColor('#ff0000')
-      .setTitle(lang === 'ar' ? '⚠️ تأكيد الحذف' : '⚠️ Confirm Deletion')
-      .setDescription(lang === 'ar'
-        ? `**هل أنت متأكد من حذف جميع مواعيد ${type === 'building' ? 'البناء' : type === 'research' ? 'البحث' : 'التدريب'}?**\n\n` +
-          '⚠️ هذا الإجراء لا يمكن التراجع عنه!'
-        : `**Are you sure you want to delete all ${type} appointments?**\n\n` +
-          '⚠️ This action cannot be undone!')
-      .setTimestamp();
-
-    const row = new ActionRowBuilder()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId(`confirm_delete_all_${type}`)
-          .setLabel(lang === 'ar' ? '✅ نعم، احذف الكل' : '✅ Yes, Delete All')
-          .setStyle(ButtonStyle.Danger),
-        new ButtonBuilder()
-          .setCustomId(`appointment_delete_menu_${type}`)
-          .setLabel(lang === 'ar' ? '❌ إلغاء' : '❌ Cancel')
-          .setStyle(ButtonStyle.Secondary)
-      );
-
-    return { embeds: [embed], components: [row] };
-  }
-
-  // ============ نقل الزر مع موافقة/رفض ============
-  static createButtonMoveConfirmMenu(userId, lang = 'en', moveData) {
-    const layout = db.getButtonLayout();
-    const buttonNames = {
-      menu_alliance: { ar: '🤝 التحالف', en: '🤝 Alliance' },
-      menu_ministry_appointments: { ar: '📅 المواعيد', en: '📅 Appointments' },
-      menu_bookings: { ar: '📅 الحجوزات', en: '📅 Bookings' },
-      menu_members: { ar: '👥 الأعضاء', en: '👥 Members' },
-      menu_logs: { ar: '📜 السجلات', en: '📜 Logs' },
-      menu_schedule: { ar: '📅 الجدولة', en: '📅 Schedule' },
-      menu_reminders: { ar: '🔔 التذكيرات', en: '🔔 Reminders' },
-      menu_permissions: { ar: '👮 الأدمن', en: '👮 Admin' },
-      menu_stats: { ar: '📊 الإحصائيات', en: '📊 Stats' },
-      menu_settings: { ar: '⚙️ الإعدادات', en: '⚙️ Settings' },
-      menu_help: { ar: '❓ المساعدة', en: '❓ Help' },
-      lang_switch: { ar: '🌐 اللغة', en: '🌐 Language' },
-      menu_ministries: { ar: '🏛️ الوزارات', en: '🏛️ Ministries' }
-    };
-
-    const { buttonId, direction, fromRow, fromCol, toRow, toCol } = moveData;
-    const buttonName = buttonNames[buttonId] ? buttonNames[buttonId][lang] : buttonId;
-
-    // حساب الموضع الجديد
-    const directionText = {
-      up: lang === 'ar' ? '⬆️ للأعلى' : '⬆️ Up',
-      down: lang === 'ar' ? '⬇️ للأسفل' : '⬇️ Down',
-      left: lang === 'ar' ? '⬅️ لليسار' : '⬅️ Left',
-      right: lang === 'ar' ? '➡️ لليمين' : '➡️ Right'
-    };
-
-    const embed = new EmbedBuilder()
-      .setColor('#ffaa00')
-      .setTitle(lang === 'ar' ? '🔄 تأكيد نقل الزر' : '🔄 Confirm Button Move')
-      .setDescription(lang === 'ar'
-        ? `**الزر:** ${buttonName}\n\n` +
-          `**الاتجاه:** ${directionText[direction]}\n` +
-          `**من:** صف ${fromRow + 1}، موضع ${fromCol + 1}\n` +
-          `**إلى:** صف ${toRow + 1}، موضع ${toCol + 1}\n\n` +
-          '**هل تريد تطبيق هذا التغيير؟**'
-        : `**Button:** ${buttonName}\n\n` +
-          `**Direction:** ${directionText[direction]}\n` +
-          `**From:** Row ${fromRow + 1}, Position ${fromCol + 1}\n` +
-          `**To:** Row ${toRow + 1}, Position ${toCol + 1}\n\n` +
-          '**Do you want to apply this change?**')
-      .setTimestamp();
-
-    const row = new ActionRowBuilder()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId('confirm_button_move')
-          .setLabel(lang === 'ar' ? '✅ موافقة' : '✅ Approve')
-          .setStyle(ButtonStyle.Success),
-        new ButtonBuilder()
-          .setCustomId('reject_button_move')
-          .setLabel(lang === 'ar' ? '❌ رفض' : '❌ Reject')
-          .setStyle(ButtonStyle.Danger),
-        new ButtonBuilder()
-          .setCustomId('owner_buttons')
-          .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
-          .setStyle(ButtonStyle.Secondary)
-      );
-
-    return { embeds: [embed], components: [row] };
-  }
-
-  // ============ قائمة تعديل النصوص المحسنة ============
-  static createEditTextsMenu(userId, lang = 'en') {
-    const isOwner = db.isOwner(userId);
-    const defaultTexts = db.getDefaultTexts();
-    const customTexts = db.getCustomTexts();
-
-    // دمج النصوص الافتراضية والمخصصة
-    const allTexts = { ...defaultTexts, ...customTexts };
-
-    const textKeys = Object.keys(allTexts);
-    
-    const embed = new EmbedBuilder()
-      .setColor('#9b59b6')
-      .setTitle(lang === 'ar' ? '✏️ تعديل النصوص' : '✏️ Edit Texts')
-      .setDescription(lang === 'ar'
-        ? '👇 **اختر النص الذي تريد تعديله من القائمة**\n\n' +
-          'يمكنك تعديل جميع النصوص في البوت حسب رغبتك.'
-        : '👇 **Select the text you want to edit from the list**\n\n' +
-          'You can customize all bot texts as you wish.')
-      .setTimestamp();
-
-    // أسماء النصوص المعروضة
-    const textLabels = {
-      mainTitle: { ar: '📝 العنوان الرئيسي', en: '📝 Main Title' },
-      welcomeMessage: { ar: '👋 رسالة الترحيب', en: '👋 Welcome Message' },
-      allianceTitle: { ar: '🤝 عنوان التحالف', en: '🤝 Alliance Title' },
-      membersTitle: { ar: '👥 عنوان الأعضاء', en: '👥 Members Title' },
-      bookingsTitle: { ar: '📅 عنوان الحجوزات', en: '📅 Bookings Title' },
-      settingsTitle: { ar: '⚙️ عنوان الإعدادات', en: '⚙️ Settings Title' },
-      helpTitle: { ar: '❓ عنوان المساعدة', en: '❓ Help Title' },
-      statsTitle: { ar: '📊 عنوان الإحصائيات', en: '📊 Stats Title' },
-      permissionsTitle: { ar: '👮 عنوان الصلاحيات', en: '👮 Permissions Title' },
-      remindersTitle: { ar: '🔔 عنوان التذكيرات', en: '🔔 Reminders Title' }
-    };
-
-    // إنشاء خيارات القائمة المنسدلة
-    const selectOptions = textKeys.filter(key => textLabels[key]).map(key => {
-      const label = textLabels[key] ? textLabels[key][lang] : key;
-      const currentValue = allTexts[key] ? allTexts[key][lang] : '-';
-      return {
-        label: label.replace(/[^\w\s\u0600-\u06FF]/g, '').substring(0, 25),
-        description: currentValue.substring(0, 50),
-        value: key
-      };
-    });
-
-    const selectMenu = new ActionRowBuilder()
-      .addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId('select_text_to_edit')
-          .setPlaceholder(lang === 'ar' ? '📌 اختر نصاً للتعديل...' : '📌 Select a text to edit...')
-          .addOptions(selectOptions.slice(0, 25))
-      );
-
-    const row2 = new ActionRowBuilder()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId('text_reset_all')
-          .setLabel(lang === 'ar' ? '↩️ استعادة الافتراضي' : '↩️ Reset All')
-          .setStyle(ButtonStyle.Danger)
-          .setDisabled(!isOwner),
-        new ButtonBuilder()
-          .setCustomId('back_owner_admin')
-          .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
-          .setStyle(ButtonStyle.Secondary)
-      );
-
-    return { embeds: [embed], components: [selectMenu, row2] };
-  }
-
-  // ============ ربط التحالف تلقائياً مع السيرفر ============
-  static createGuildAllianceLinkMenu(guildId, lang = 'en') {
-    const guildAlliance = db.getGuildAlliance(guildId);
-    const hasAlliance = guildAlliance.name && guildAlliance.name !== '';
-
-    const embed = new EmbedBuilder()
-      .setColor(hasAlliance ? '#00ff00' : '#ffaa00')
-      .setTitle(lang === 'ar' ? '🔗 ربط التحالف' : '🔗 Alliance Linking')
-      .setDescription(hasAlliance
-        ? (lang === 'ar'
-          ? `✅ **التحالف مرتبط بنجاح!**\n\n` +
-            `📛 **الاسم:** ${guildAlliance.name}\n` +
-            `🏷️ **التاغ:** ${guildAlliance.tag || '-'}\n` +
-            `👥 **الأعضاء:** ${guildAlliance.members.length}\n\n` +
-            (guildAlliance.autoSync ? '🔄 المزامنة التلقائية مفعلة' : '⏸️ المزامنة التلقائية معطلة')
-          : `✅ **Alliance linked successfully!**\n\n` +
-            `📛 **Name:** ${guildAlliance.name}\n` +
-            `🏷️ **Tag:** ${guildAlliance.tag || '-'}\n` +
-            `👥 **Members:** ${guildAlliance.members.length}\n\n` +
-            (guildAlliance.autoSync ? '🔄 Auto-sync enabled' : '⏸️ Auto-sync disabled'))
-        : (lang === 'ar'
-          ? '⚠️ **لم يتم تسجيل تحالف لهذا السيرفر بعد**\n\n' +
-            'سجل تحالفك لربطه تلقائياً مع السيرفر.\n' +
-            'سيتم تسجيل جميع أعضاء السيرفر تلقائياً.'
-          : '⚠️ **No alliance registered for this server yet**\n\n' +
-            'Register your alliance to link it automatically.\n' +
-            'All server members will be registered automatically.'))
-      .setTimestamp();
-
-    const row1 = new ActionRowBuilder()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId('guild_alliance_register')
-          .setLabel(lang === 'ar' ? '📝 تسجيل التحالف' : '📝 Register Alliance')
-          .setStyle(hasAlliance ? ButtonStyle.Secondary : ButtonStyle.Success),
-        new ButtonBuilder()
-          .setCustomId('guild_sync_members')
-          .setLabel(lang === 'ar' ? '🔄 مزامنة الأعضاء' : '🔄 Sync Members')
-          .setStyle(ButtonStyle.Primary)
-          .setDisabled(!hasAlliance),
-        new ButtonBuilder()
-          .setCustomId('guild_toggle_autosync')
-          .setLabel(lang === 'ar'
-            ? (guildAlliance.autoSync ? '⏸️ إيقاف المزامنة' : '▶️ تفعيل المزامنة')
-            : (guildAlliance.autoSync ? '⏸️ Disable Sync' : '▶️ Enable Sync'))
-          .setStyle(guildAlliance.autoSync ? ButtonStyle.Secondary : ButtonStyle.Success)
-          .setDisabled(!hasAlliance)
-      );
-
-    const row2 = new ActionRowBuilder()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId('back_alliance')
-          .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
-          .setStyle(ButtonStyle.Secondary)
-      );
-
-    return { embeds: [embed], components: [row1, row2] };
-  }
-}
+  }}

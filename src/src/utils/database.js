@@ -192,22 +192,11 @@ class Database {
   // Bookings
   getBookings(type = null) {
     const bookings = this.read('bookings');
-    // تأكد أن كل حجز يحتوي على الحقول الجديدة
-    for (const t of Object.keys(bookings)) {
-      bookings[t] = bookings[t].map(b => ({
-        ...b,
-        preferredTime: b.preferredTime || '',
-        dateStr: b.dateStr || (b.startDate ? b.startDate.split('T')[0] : new Date().toISOString().split('T')[0])
-      }));
-    }
     return type ? bookings[type] : bookings;
   }
 
   addBooking(type, booking) {
     const bookings = this.read('bookings');
-    // تأكيد وجود الحقول الجديدة
-    if (!booking.preferredTime) booking.preferredTime = '';
-    if (!booking.dateStr) booking.dateStr = new Date().toISOString().split('T')[0];
     booking.id = Date.now().toString();
     booking.createdAt = new Date().toISOString();
     bookings[type].push(booking);
@@ -313,33 +302,14 @@ class Database {
   // Custom texts management
   getCustomTexts() {
     const users = this.read('users');
-      return users._customTexts || {
-        mainTitle: { ar: '🎮 لوحة التحكم الرئيسية', en: '🎮 Main Control Panel' },
-        mainDescription: { ar: 'مرحباً بك! اختر أحد الخيارات أدناه', en: 'Welcome! Choose one of the options below' },
-        allianceTitle: { ar: '🤝 التحالف', en: '🤝 Alliance' },
-        allianceDescription: { ar: 'إدارة معلومات التحالف', en: 'Manage alliance information' },
-        membersTitle: { ar: '👥 الأعضاء', en: '👥 Members' },
-        membersDescription: { ar: 'إدارة الأعضاء في التحالف', en: 'Manage alliance members' },
-        bookingsTitle: { ar: '📅 الحجوزات', en: '📅 Bookings' },
-        bookingsDescription: { ar: 'اختر نوع الحجز', en: 'Choose booking type' },
-        welcomeMessage: { ar: 'مرحباً بك في نظام إدارة التحالف', en: 'Welcome to Alliance Management System' }
-      };
+    return users._customTexts || {
+      mainTitle: { ar: '🎮 لوحة التحكم الرئيسية', en: '🎮 Main Control Panel' },
+      allianceTitle: { ar: '🤝 التحالف', en: '🤝 Alliance' },
+      membersTitle: { ar: '👥 الأعضاء', en: '👥 Members' },
+      welcomeMessage: { ar: 'مرحباً بك في نظام إدارة التحالف', en: 'Welcome to Alliance Management System' }
+    };
   }
 
-    getCustomDescription(key) {
-      const users = this.read('users');
-      if (users._customTexts && users._customTexts[key + 'Description']) {
-        return users._customTexts[key + 'Description'];
-      }
-      return null;
-    }
-
-    setCustomDescription(key, arText, enText) {
-      const users = this.read('users');
-      if (!users._customTexts) users._customTexts = {};
-      users._customTexts[key + 'Description'] = { ar: arText, en: enText };
-      return this.write('users', users);
-    }
   setCustomText(key, arText, enText) {
     const users = this.read('users');
     if (!users._customTexts) users._customTexts = {};
@@ -968,242 +938,6 @@ class Database {
     ministry.assignedAt = new Date().toISOString();
     this.write('ministries', ministries);
     return { success: true, ministry };
-  }
-
-  // ============ نظام السيرفرات المنفصل ============
-  
-  // الحصول على بيانات سيرفر معين
-  getGuildData(guildId) {
-    const guilds = this.read('guilds');
-    if (!guilds.settings) guilds.settings = {};
-    if (!guilds.settings[guildId]) {
-      guilds.settings[guildId] = {
-        alliance: {
-          name: '',
-          tag: '',
-          leader: '',
-          members: [],
-          description: '',
-          autoSync: true
-        },
-        bookings: {
-          building: [],
-          research: [],
-          training: []
-        },
-        permissions: {
-          owner: '',
-          admins: [],
-          moderators: []
-        },
-        customTexts: {},
-        buttonLayout: null,
-        createdAt: new Date().toISOString()
-      };
-      this.write('guilds', guilds);
-    }
-    return guilds.settings[guildId];
-  }
-
-  // حفظ بيانات سيرفر
-  saveGuildData(guildId, data) {
-    const guilds = this.read('guilds');
-    if (!guilds.settings) guilds.settings = {};
-    guilds.settings[guildId] = { ...guilds.settings[guildId], ...data };
-    return this.write('guilds', guilds);
-  }
-
-  // الحصول على تحالف سيرفر معين
-  getGuildAlliance(guildId) {
-    const guildData = this.getGuildData(guildId);
-    return guildData.alliance || {
-      name: '',
-      tag: '',
-      leader: '',
-      members: [],
-      description: ''
-    };
-  }
-
-  // حفظ تحالف سيرفر
-  saveGuildAlliance(guildId, alliance) {
-    const guilds = this.read('guilds');
-    if (!guilds.settings) guilds.settings = {};
-    if (!guilds.settings[guildId]) {
-      this.getGuildData(guildId);
-    }
-    guilds.settings[guildId].alliance = alliance;
-    return this.write('guilds', guilds);
-  }
-
-  // إضافة عضو تلقائي للتحالف
-  autoAddGuildMember(guildId, userId, userName, rank = 'R1') {
-    const guilds = this.read('guilds');
-    const guildData = this.getGuildData(guildId);
-    
-    // تحقق من وجود العضو
-    const existingMember = guildData.alliance.members.find(m => m.id === userId);
-    if (existingMember) {
-      return { success: false, message: 'Member already exists' };
-    }
-
-    guildData.alliance.members.push({
-      id: userId,
-      discordId: userId,
-      name: userName,
-      gameName: userName,
-      rank: rank,
-      power: 0,
-      furnaceLevel: 0,
-      joinedAt: new Date().toISOString(),
-      lastActive: new Date().toISOString(),
-      autoAdded: true
-    });
-
-    guilds.settings[guildId] = guildData;
-    this.write('guilds', guilds);
-    return { success: true, member: guildData.alliance.members[guildData.alliance.members.length - 1] };
-  }
-
-  // مزامنة أعضاء السيرفر مع التحالف
-  syncGuildMembers(guildId, discordMembers) {
-    const guildData = this.getGuildData(guildId);
-    let added = 0;
-    let updated = 0;
-
-    for (const member of discordMembers) {
-      const existingMember = guildData.alliance.members.find(m => m.id === member.id);
-      if (!existingMember) {
-        guildData.alliance.members.push({
-          id: member.id,
-          discordId: member.id,
-          name: member.displayName || member.username,
-          gameName: member.displayName || member.username,
-          rank: 'R1',
-          power: 0,
-          furnaceLevel: 0,
-          joinedAt: new Date().toISOString(),
-          lastActive: new Date().toISOString(),
-          autoAdded: true
-        });
-        added++;
-      } else {
-        existingMember.lastActive = new Date().toISOString();
-        existingMember.name = member.displayName || member.username;
-        updated++;
-      }
-    }
-
-    this.saveGuildAlliance(guildId, guildData.alliance);
-    return { added, updated };
-  }
-
-  // الحصول على حجوزات سيرفر معين
-  getGuildBookings(guildId, type = null) {
-    const guildData = this.getGuildData(guildId);
-    return type ? guildData.bookings[type] : guildData.bookings;
-  }
-
-  // إضافة حجز لسيرفر
-  addGuildBooking(guildId, type, booking) {
-    const guilds = this.read('guilds');
-    const guildData = this.getGuildData(guildId);
-    
-    booking.id = Date.now().toString();
-    booking.createdAt = new Date().toISOString();
-    booking.guildId = guildId;
-    
-    if (!guildData.bookings[type]) guildData.bookings[type] = [];
-    guildData.bookings[type].push(booking);
-    
-    guilds.settings[guildId] = guildData;
-    this.write('guilds', guilds);
-    return booking;
-  }
-
-  // حذف حجز من سيرفر
-  removeGuildBooking(guildId, type, bookingId) {
-    const guilds = this.read('guilds');
-    const guildData = this.getGuildData(guildId);
-    
-    if (!guildData.bookings[type]) return false;
-    guildData.bookings[type] = guildData.bookings[type].filter(b => b.id !== bookingId);
-    
-    guilds.settings[guildId] = guildData;
-    return this.write('guilds', guilds);
-  }
-
-  // حذف جميع حجوزات نوع معين من سيرفر
-  clearGuildBookings(guildId, type = null) {
-    const guilds = this.read('guilds');
-    const guildData = this.getGuildData(guildId);
-    
-    if (type) {
-      guildData.bookings[type] = [];
-    } else {
-      guildData.bookings = {
-        building: [],
-        research: [],
-        training: []
-      };
-    }
-    
-    guilds.settings[guildId] = guildData;
-    return this.write('guilds', guilds);
-  }
-
-  // النصوص المخصصة للسيرفر
-  getGuildCustomTexts(guildId) {
-    const guildData = this.getGuildData(guildId);
-    return guildData.customTexts || this.getDefaultTexts();
-  }
-
-  getDefaultTexts() {
-    return {
-      mainTitle: { ar: '🎮 لوحة التحكم الرئيسية', en: '🎮 Main Control Panel' },
-      welcomeMessage: { ar: 'مرحباً بك في نظام إدارة التحالف', en: 'Welcome to Alliance Management System' },
-      allianceTitle: { ar: '🤝 التحالف', en: '🤝 Alliance' },
-      membersTitle: { ar: '👥 الأعضاء', en: '👥 Members' },
-      bookingsTitle: { ar: '📅 الحجوزات', en: '📅 Bookings' },
-      settingsTitle: { ar: '⚙️ الإعدادات', en: '⚙️ Settings' },
-      helpTitle: { ar: '❓ المساعدة', en: '❓ Help' },
-      statsTitle: { ar: '📊 الإحصائيات', en: '📊 Statistics' },
-      permissionsTitle: { ar: '👮 الصلاحيات', en: '👮 Permissions' },
-      remindersTitle: { ar: '🔔 التذكيرات', en: '🔔 Reminders' }
-    };
-  }
-
-  setGuildCustomText(guildId, key, arText, enText) {
-    const guilds = this.read('guilds');
-    const guildData = this.getGuildData(guildId);
-    
-    if (!guildData.customTexts) guildData.customTexts = {};
-    guildData.customTexts[key] = { ar: arText, en: enText };
-    
-    guilds.settings[guildId] = guildData;
-    return this.write('guilds', guilds);
-  }
-
-  // حالة نقل الزر المعلقة
-  getPendingButtonMove(guildId) {
-    const guildData = this.getGuildData(guildId);
-    return guildData.pendingButtonMove || null;
-  }
-
-  setPendingButtonMove(guildId, moveData) {
-    const guilds = this.read('guilds');
-    const guildData = this.getGuildData(guildId);
-    guildData.pendingButtonMove = moveData;
-    guilds.settings[guildId] = guildData;
-    return this.write('guilds', guilds);
-  }
-
-  clearPendingButtonMove(guildId) {
-    const guilds = this.read('guilds');
-    const guildData = this.getGuildData(guildId);
-    delete guildData.pendingButtonMove;
-    guilds.settings[guildId] = guildData;
-    return this.write('guilds', guilds);
   }
 }
 

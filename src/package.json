@@ -1,0 +1,20 @@
+{
+  "name": "discord-booking-bot",
+  "version": "1.0.0",
+  "description": "Discord bot with booking system, alliance management, and reminders",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node scripts/test-bot.js"
+  },
+  "keywords": ["discord", "bot", "booking", "alliance"],
+  "author": "GameOver305",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.4.5",
+    "node-cron": "^3.0.3"
+  }
+}

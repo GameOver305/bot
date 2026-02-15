@@ -1,37 +1,3 @@
-// ============ مزامنة أعضاء التحالف تلقائياً عند تفعيل autoSync ============
-client.on(Events.GuildMemberAdd, async (member) => {
-  try {
-    const guildId = member.guild.id;
-    const guildAlliance = db.getGuildAlliance(guildId);
-    if (guildAlliance.autoSync) {
-      // إضافة العضو إذا لم يكن موجوداً
-      const exists = guildAlliance.members.some(m => m.id === member.id);
-      if (!exists) {
-        db.autoAddGuildMember(guildId, member.id, member.displayName || member.user.username);
-      }
-    }
-  } catch (e) {
-    console.error('خطأ في مزامنة عضو جديد:', e);
-  }
-});
-
-client.on(Events.GuildMemberRemove, async (member) => {
-  try {
-    const guildId = member.guild.id;
-    const guildAlliance = db.getGuildAlliance(guildId);
-    if (guildAlliance.autoSync) {
-      // حذف العضو من التحالف إذا كان autoSync مفعّل
-      const alliance = db.getGuildAlliance(guildId);
-      const beforeCount = alliance.members.length;
-      alliance.members = alliance.members.filter(m => m.id !== member.id);
-      if (alliance.members.length !== beforeCount) {
-        db.saveGuildAlliance(guildId, alliance);
-      }
-    }
-  } catch (e) {
-    console.error('خطأ في إزالة عضو من التحالف:', e);
-  }
-});
 import { Client, GatewayIntentBits, Collection, REST, Routes, Events } from 'discord.js';
 import { config } from 'dotenv';
 import { fileURLToPath } from 'url';
@@ -41,24 +7,8 @@ import { handleButtonInteraction, handleSelectMenuInteraction } from './handlers
 import { handleModalSubmit } from './handlers/modalHandler.js';
 import { ReminderSystem } from './services/reminderService.js';
 import db from './utils/database.js';
-import { runAutoUpdate } from './utils/autoUpdate.js';
 
 config();
-
-// ============ تشغيل التحديث التلقائي عند بدء البوت ============
-const AUTO_UPDATE_ENABLED = process.env.AUTO_UPDATE !== 'false';
-
-if (AUTO_UPDATE_ENABLED) {
-  console.log('🚀 جاري بدء تشغيل البوت مع التحديث التلقائي...\n');
-  try {
-    await runAutoUpdate();
-  } catch (updateError) {
-    console.error('⚠️ تعذر التحديث التلقائي:', updateError.message);
-  }
-} else {
-  console.log('🚀 جاري بدء تشغيل البوت (التحديث التلقائي معطل)...\n');
-}
-// ============================================================
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
