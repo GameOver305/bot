@@ -414,11 +414,7 @@ export class ButtonManager {
         new ButtonBuilder()
           .setCustomId('perm_remove_admin')
           .setLabel(lang === 'ar' ? '➖ إزالة أدمن' : '➖ Remove Admin')
-          .setStyle(ButtonStyle.Danger),
-        new ButtonBuilder()
-          .setCustomId('perm_set_owner')
-          .setLabel(lang === 'ar' ? '👑 تغيير المالك' : '👑 Change Owner')
-          .setStyle(ButtonStyle.Primary)
+          .setStyle(ButtonStyle.Danger)
       );
 
     const row2 = new ActionRowBuilder()
@@ -706,11 +702,7 @@ export class ButtonManager {
           .setCustomId('admin_remove')
           .setLabel(lang === 'ar' ? '➖ حذف مشرف' : '➖ Remove Admin')
           .setStyle(ButtonStyle.Danger)
-          .setDisabled(perms.admins.length === 0),
-        new ButtonBuilder()
-          .setCustomId('admin_set_owner')
-          .setLabel(lang === 'ar' ? '👑 تعيين مالك' : '👑 Set Owner')
-          .setStyle(ButtonStyle.Primary)
+          .setDisabled(perms.admins.length === 0)
       );
 
     const row2 = new ActionRowBuilder()
@@ -1118,43 +1110,58 @@ export class ButtonManager {
   }
 
   // Button Layout Customization Menu
-  static createButtonLayoutMenu(userId, lang = 'en') {
+  static createButtonLayoutMenu(userId, lang = 'en', selectedBtn = null) {
     const isOwner = db.isOwner(userId);
     const layout = db.getButtonLayout();
+    const { StringSelectMenuBuilder } = require('discord.js');
 
-    let description = lang === 'ar'
-      ? '**🎨 تخصيص الأزرار**\n\n'
-      : '**🎨 Button Customization**\n\n';
-
-    description += '**' + (lang === 'ar' ? 'الترتيب الحالي:' : 'Current Layout:') + '**\n';
-    
-    const buttonLabels = {
-      menu_alliance: '1️⃣ ' + (lang === 'ar' ? 'التحالف' : 'Alliance'),
-      menu_ministry_appointments: '2️⃣ ' + (lang === 'ar' ? 'المواعيد' : 'Appointments'),
-      menu_bookings: '2️⃣ ' + (lang === 'ar' ? 'الحجوزات' : 'Bookings'),
-      menu_members: '3️⃣ ' + (lang === 'ar' ? 'الأعضاء' : 'Members'),
-      menu_logs: '4️⃣ ' + (lang === 'ar' ? 'السجلات' : 'Logs'),
-      menu_schedule: '5️⃣ ' + (lang === 'ar' ? 'الجدولة' : 'Schedule'),
-      menu_reminders: '6️⃣ ' + (lang === 'ar' ? 'التذكيرات' : 'Reminders'),
-      menu_permissions: '7️⃣ ' + (lang === 'ar' ? 'الأدمن' : 'Admin'),
-      menu_stats: '8️⃣ ' + (lang === 'ar' ? 'الإحصائيات' : 'Stats'),
-      menu_settings: '9️⃣ ' + (lang === 'ar' ? 'الإعدادات' : 'Settings'),
-      menu_help: '🔟 ' + (lang === 'ar' ? 'المساعدة' : 'Help'),
-      lang_switch: '1️⃣1️⃣ ' + (lang === 'ar' ? 'اللغة' : 'Language')
+    const buttonNames = {
+      menu_alliance: { ar: '🤝 التحالف', en: '🤝 Alliance' },
+      menu_ministry_appointments: { ar: '📅 المواعيد', en: '📅 Appointments' },
+      menu_bookings: { ar: '📅 الحجوزات', en: '📅 Bookings' },
+      menu_members: { ar: '👥 الأعضاء', en: '👥 Members' },
+      menu_logs: { ar: '📜 السجلات', en: '📜 Logs' },
+      menu_schedule: { ar: '📅 الجدولة', en: '📅 Schedule' },
+      menu_reminders: { ar: '🔔 التذكيرات', en: '🔔 Reminders' },
+      menu_permissions: { ar: '👮 الأدمن', en: '👮 Admin' },
+      menu_stats: { ar: '📊 الإحصائيات', en: '📊 Stats' },
+      menu_settings: { ar: '⚙️ الإعدادات', en: '⚙️ Settings' },
+      menu_help: { ar: '❓ المساعدة', en: '❓ Help' },
+      lang_switch: { ar: '🌐 اللغة', en: '🌐 Language' },
+      menu_ministries: { ar: '🏛️ الوزارات', en: '🏛️ Ministries' }
     };
 
+    // Build visual layout display
+    let description = lang === 'ar'
+      ? '**🎨 تخصيص ترتيب الأزرار**\n\n'
+      : '**🎨 Customize Button Layout**\n\n';
+
+    description += '**' + (lang === 'ar' ? '📋 الترتيب الحالي:' : '📋 Current Layout:') + '**\n\n';
+    
+    let btnIndex = 1;
     layout.rows.forEach((row, rowIndex) => {
-      description += `\n**${lang === 'ar' ? 'صف' : 'Row'} ${rowIndex + 1}:** `;
-      description += row.map(btn => buttonLabels[btn] || btn).join(' ');
+      description += `**${lang === 'ar' ? 'صف' : 'Row'} ${rowIndex + 1}:** `;
+      const rowBtns = row.map(btn => {
+        const name = buttonNames[btn] ? buttonNames[btn][lang] : btn;
+        const marker = selectedBtn === `${rowIndex},${row.indexOf(btn)}` ? '**[ ' : '';
+        const markerEnd = selectedBtn === `${rowIndex},${row.indexOf(btn)}` ? ' ]**' : '';
+        return `${marker}${btnIndex++}. ${name}${markerEnd}`;
+      });
+      description += rowBtns.join(' | ') + '\n';
     });
 
-    description += '\n\n' + (lang === 'ar' 
-      ? '**📖 التعليمات:**\n' +
-        '• **تبديل:** اكتب موضعين (صف,زر) مثل: `1,2` و `2,1`\n' +
-        '• **تعديل نص:** اكتب رقم الزر (1-11) ثم النص الجديد'
-      : '**📖 Instructions:**\n' +
-        '• **Swap:** Enter two positions (row,btn) like: `1,2` and `2,1`\n' +
-        '• **Edit Label:** Enter button number (1-11) then new text');
+    if (selectedBtn) {
+      const [selRow, selCol] = selectedBtn.split(',').map(Number);
+      const selBtnId = layout.rows[selRow]?.[selCol];
+      const selName = buttonNames[selBtnId] ? buttonNames[selBtnId][lang] : selBtnId;
+      description += '\n' + (lang === 'ar' 
+        ? `✨ **الزر المحدد:** ${selName}\nاستخدم الأسهم لتحريكه`
+        : `✨ **Selected:** ${selName}\nUse arrows to move it`);
+    } else {
+      description += '\n' + (lang === 'ar'
+        ? '👆 **اختر زراً من القائمة أدناه لتحريكه**'
+        : '👆 **Select a button from the menu below to move it**');
+    }
 
     const embed = new EmbedBuilder()
       .setColor('#9900ff')
@@ -1162,25 +1169,66 @@ export class ButtonManager {
       .setDescription(description)
       .setTimestamp();
 
-    const row1 = new ActionRowBuilder()
+    // Create select menu with all buttons
+    const selectOptions = [];
+    let idx = 0;
+    layout.rows.forEach((row, rowIndex) => {
+      row.forEach((btn, colIndex) => {
+        idx++;
+        const name = buttonNames[btn] ? buttonNames[btn][lang] : btn;
+        selectOptions.push({
+          label: `${idx}. ${name.replace(/[^\w\s\u0600-\u06FF]/g, '')}`,
+          description: `${lang === 'ar' ? 'صف' : 'Row'} ${rowIndex + 1}, ${lang === 'ar' ? 'موضع' : 'Pos'} ${colIndex + 1}`,
+          value: `${rowIndex},${colIndex}`,
+          default: selectedBtn === `${rowIndex},${colIndex}`
+        });
+      });
+    });
+
+    const selectMenu = new ActionRowBuilder()
+      .addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId('layout_select_btn')
+          .setPlaceholder(lang === 'ar' ? '📌 اختر زراً لتحريكه...' : '📌 Select a button to move...')
+          .addOptions(selectOptions.slice(0, 25))
+      );
+
+    // Arrow buttons for movement
+    const arrowRow = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('layout_move_up')
+          .setLabel('⬆️')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!isOwner || !selectedBtn),
+        new ButtonBuilder()
+          .setCustomId('layout_move_down')
+          .setLabel('⬇️')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!isOwner || !selectedBtn),
+        new ButtonBuilder()
+          .setCustomId('layout_move_left')
+          .setLabel('⬅️')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!isOwner || !selectedBtn),
+        new ButtonBuilder()
+          .setCustomId('layout_move_right')
+          .setLabel('➡️')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!isOwner || !selectedBtn)
+      );
+
+    // Quick swap and actions
+    const actionsRow = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
           .setCustomId('layout_swap')
-          .setLabel(lang === 'ar' ? '🔄 تبديل مواضع' : '🔄 Swap Positions')
-          .setStyle(ButtonStyle.Primary)
+          .setLabel(lang === 'ar' ? '🔄 تبديل سريع' : '🔄 Quick Swap')
+          .setStyle(ButtonStyle.Success)
           .setDisabled(!isOwner),
         new ButtonBuilder()
-          .setCustomId('layout_edit_labels')
-          .setLabel(lang === 'ar' ? '✏️ تعديل النصوص' : '✏️ Edit Labels')
-          .setStyle(ButtonStyle.Success)
-          .setDisabled(!isOwner)
-      );
-
-    const row2 = new ActionRowBuilder()
-      .addComponents(
-        new ButtonBuilder()
           .setCustomId('layout_reset')
-          .setLabel(lang === 'ar' ? '🔄 إعادة للافتراضي' : '🔄 Reset to Default')
+          .setLabel(lang === 'ar' ? '↩️ إعادة ضبط' : '↩️ Reset')
           .setStyle(ButtonStyle.Danger)
           .setDisabled(!isOwner),
         new ButtonBuilder()
@@ -1189,10 +1237,10 @@ export class ButtonManager {
           .setStyle(ButtonStyle.Secondary)
       );
 
-    const row3 = new ActionRowBuilder()
+    const backRow = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
-          .setCustomId('back_permissions')
+          .setCustomId('back_owner_admin')
           .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
           .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
@@ -1201,6 +1249,6 @@ export class ButtonManager {
           .setStyle(ButtonStyle.Danger)
       );
 
-    return { embeds: [embed], components: [row1, row2, row3] };
+    return { embeds: [embed], components: [selectMenu, arrowRow, actionsRow, backRow] };
   }
 }

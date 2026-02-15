@@ -37,9 +37,6 @@ export async function handleModalSubmit(interaction) {
     else if (customId === 'admin_modal_remove') {
       await processRemoveAdmin(interaction, userId, lang);
     }
-    else if (customId === 'admin_modal_set_owner') {
-      await processSetOwner(interaction, userId, lang);
-    }
     // New Modals
     else if (customId === 'log_channel_modal') {
       await processSetLogChannel(interaction, userId, lang);
@@ -552,30 +549,6 @@ async function processRemoveAdmin(interaction, userId, lang) {
     content: lang === 'ar' 
       ? `✅ تم إزالة <@${targetUserId}> من المشرفين` 
       : `✅ Removed <@${targetUserId}> from admins`, 
-    ephemeral: true 
-  });
-}
-
-async function processSetOwner(interaction, userId, lang) {
-  if (!db.isOwner(userId)) {
-    await interaction.reply({ content: lang === 'ar' ? '❌ صلاحية المالك فقط' : '❌ Owner only', ephemeral: true });
-    return;
-  }
-
-  let targetUserId = interaction.fields.getTextInputValue('user_id').trim();
-
-  // Extract user ID from mention
-  if (targetUserId.startsWith('<@') && targetUserId.endsWith('>')) {
-    targetUserId = targetUserId.replace(/[<@!>]/g, '');
-  }
-
-  // Set new owner
-  db.setOwner(targetUserId);
-  
-  await interaction.reply({ 
-    content: lang === 'ar' 
-      ? `✅ تم تعيين <@${targetUserId}> كمالك جديد للبوت` 
-      : `✅ Set <@${targetUserId}> as new bot owner`, 
     ephemeral: true 
   });
 }

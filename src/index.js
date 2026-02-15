@@ -3,7 +3,7 @@ import { config } from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs';
-import { handleButtonInteraction } from './handlers/interactionHandler.js';
+import { handleButtonInteraction, handleSelectMenuInteraction } from './handlers/interactionHandler.js';
 import { handleModalSubmit } from './handlers/modalHandler.js';
 import { ReminderSystem } from './services/reminderService.js';
 
@@ -112,6 +112,10 @@ client.on(Events.InteractionCreate, async interaction => {
   // Handle button interactions
   else if (interaction.isButton()) {
     await handleButtonInteraction(interaction);
+  }
+  // Handle select menu interactions
+  else if (interaction.isStringSelectMenu()) {
+    await handleSelectMenuInteraction(interaction);
   }
   // Handle modal submissions
   else if (interaction.isModalSubmit()) {

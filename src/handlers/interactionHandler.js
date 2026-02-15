@@ -77,11 +77,41 @@ export async function handleButtonInteraction(interaction) {
     }
 
     // Layout Controls
+    else if (customId === 'layout_select_btn') {
+      // Handle via StringSelectMenu below
+    }
     else if (customId === 'layout_move_up') {
-      await showMoveButtonModal(interaction, 'up', lang);
+      const selected = interaction.message.embeds[0]?.description?.match(/✨.*?\n/)?.[0] ? 
+        extractSelectedButton(interaction.message.embeds[0].description) : null;
+      if (!selected) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ اختر زراً أولاً' : '❌ Select a button first', ephemeral: true });
+        return;
+      }
+      await moveButtonDirection(interaction, selected, 'up', userId, lang);
     }
     else if (customId === 'layout_move_down') {
-      await showMoveButtonModal(interaction, 'down', lang);
+      const selected = extractSelectedButton(interaction.message.embeds[0]?.description);
+      if (!selected) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ اختر زراً أولاً' : '❌ Select a button first', ephemeral: true });
+        return;
+      }
+      await moveButtonDirection(interaction, selected, 'down', userId, lang);
+    }
+    else if (customId === 'layout_move_left') {
+      const selected = extractSelectedButton(interaction.message.embeds[0]?.description);
+      if (!selected) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ اختر زراً أولاً' : '❌ Select a button first', ephemeral: true });
+        return;
+      }
+      await moveButtonDirection(interaction, selected, 'left', userId, lang);
+    }
+    else if (customId === 'layout_move_right') {
+      const selected = extractSelectedButton(interaction.message.embeds[0]?.description);
+      if (!selected) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ اختر زراً أولاً' : '❌ Select a button first', ephemeral: true });
+        return;
+      }
+      await moveButtonDirection(interaction, selected, 'right', userId, lang);
     }
     else if (customId === 'layout_swap') {
       await showSwapButtonsModal(interaction, lang);
@@ -121,13 +151,7 @@ export async function handleButtonInteraction(interaction) {
       }
       await showRemoveAdminModal(interaction, lang);
     }
-    else if (customId === 'perm_set_owner') {
-      if (!db.isOwner(userId)) {
-        await interaction.reply({ content: lang === 'ar' ? '❌ المالك فقط' : '❌ Owner only', ephemeral: true });
-        return;
-      }
-      await showSetOwnerModal(interaction, lang);
-    }
+
 
     // Back buttons
     else if (customId === 'back_main') {
@@ -413,13 +437,6 @@ export async function handleButtonInteraction(interaction) {
         return;
       }
       await showRemoveAdminModal(interaction, lang);
-    }
-    else if (customId === 'admin_set_owner') {
-      if (!db.isOwner(userId)) {
-        await interaction.reply({ content: t(lang, 'permissions.ownerOnly'), ephemeral: true });
-        return;
-      }
-      await showSetOwnerModal(interaction, lang);
     }
 
     // Advanced Alliance Info
@@ -1310,24 +1327,6 @@ async function showRemoveAdminModal(interaction, lang) {
   await interaction.showModal(modal);
 }
 
-async function showSetOwnerModal(interaction, lang) {
-  const modal = new ModalBuilder()
-    .setCustomId('admin_modal_set_owner')
-    .setTitle(lang === 'ar' ? 'تعيين مالك جديد' : 'Set New Owner');
-
-  const userIdInput = new TextInputBuilder()
-    .setCustomId('user_id')
-    .setLabel(lang === 'ar' ? 'ID المستخدم أو @منشن' : 'User ID or @mention')
-    .setStyle(TextInputStyle.Short)
-    .setPlaceholder('123456789012345678 or @user')
-    .setRequired(true);
-
-  modal.addComponents(
-    new ActionRowBuilder().addComponents(userIdInput)
-  );
-
-  await interaction.showModal(modal);
-}
 // === Advanced Alliance Functions ===
 
 async function showDetailedMembersList(interaction, lang) {
@@ -2246,3 +2245,122 @@ const buttonNumberMap = {
   10: 'menu_help',
   11: 'lang_switch'
 };
+
+// Extract selected button position from embed description
+function extractSelectedButton(description) {
+  if (!description) return null;
+  const match = description.match(/✨.*?(\d+),(\d+)/);
+  if (match) return `${match[1]},${match[2]}`;
+  
+  // Try to find selected button indicator
+  const selectMatch = description.match(/\*\*\[\s*(\d+)\./);
+  if (selectMatch) {
+    // Convert button number to position
+    const layout = db.getButtonLayout();
+    let btnNum = 0;
+    for (let r = 0; r < layout.rows.length; r++) {
+      for (let c = 0; c < layout.rows[r].length; c++) {
+        btnNum++;
+        if (btnNum === parseInt(selectMatch[1])) {
+          return `${r},${c}`;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+// Move button in specified direction
+async function moveButtonDirection(interaction, selectedPos, direction, userId, lang) {
+  if (!db.isOwner(userId)) {
+    await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
+    return;
+  }
+
+  const layout = db.getButtonLayout();
+  const [row, col] = selectedPos.split(',').map(Number);
+  
+  let targetRow = row;
+  let targetCol = col;
+  
+  switch (direction) {
+    case 'up':
+      targetRow = row > 0 ? row - 1 : row;
+      break;
+    case 'down':
+      targetRow = row < layout.rows.length - 1 ? row + 1 : row;
+      break;
+    case 'left':
+      if (col > 0) {
+        targetCol = col - 1;
+      } else if (row > 0) {
+        targetRow = row - 1;
+        targetCol = layout.rows[row - 1].length - 1;
+      }
+      break;
+    case 'right':
+      if (col < layout.rows[row].length - 1) {
+        targetCol = col + 1;
+      } else if (row < layout.rows.length - 1) {
+        targetRow = row + 1;
+        targetCol = 0;
+      }
+      break;
+  }
+  
+  if (targetRow === row && targetCol === col) {
+    await interaction.reply({ 
+      content: lang === 'ar' ? '❌ لا يمكن التحريك في هذا الاتجاه' : '❌ Cannot move in this direction', 
+      ephemeral: true 
+    });
+    return;
+  }
+  
+  // Ensure target row exists and has enough columns
+  while (layout.rows.length <= targetRow) {
+    layout.rows.push([]);
+  }
+  
+  // Swap buttons
+  const temp = layout.rows[row][col];
+  const target = layout.rows[targetRow]?.[targetCol];
+  
+  if (target) {
+    layout.rows[row][col] = target;
+    layout.rows[targetRow][targetCol] = temp;
+  } else {
+    // If target doesn't exist, move to end of target row
+    layout.rows[row].splice(col, 1);
+    layout.rows[targetRow].push(temp);
+    targetCol = layout.rows[targetRow].length - 1;
+  }
+  
+  // Clean up empty rows
+  layout.rows = layout.rows.filter(r => r.length > 0);
+  
+  db.setButtonLayout(layout);
+  
+  const newSelected = `${targetRow},${targetCol}`;
+  await interaction.update(ButtonManager.createButtonLayoutMenu(userId, lang, newSelected));
+}
+
+// Handle select menu interactions
+export async function handleSelectMenuInteraction(interaction) {
+  const userId = interaction.user.id;
+  const user = db.getUser(userId);
+  const lang = user.language || 'en';
+  const customId = interaction.customId;
+
+  try {
+    if (customId === 'layout_select_btn') {
+      const selectedValue = interaction.values[0];
+      await interaction.update(ButtonManager.createButtonLayoutMenu(userId, lang, selectedValue));
+    }
+  } catch (error) {
+    console.error('Error handling select menu:', error);
+    await interaction.reply({ 
+      content: lang === 'ar' ? '❌ حدث خطأ' : '❌ An error occurred', 
+      ephemeral: true 
+    });
+  }
+}
