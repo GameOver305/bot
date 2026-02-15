@@ -1111,10 +1111,10 @@ async function processAllianceRegister(interaction, userId, lang) {
 
 // Ministry Appointment Processing
 async function processMinistryAppointment(interaction, type, userId, lang) {
-  const day = interaction.fields.getTextInputValue('appointment_day');
+  const memberName = interaction.fields.getTextInputValue('appointment_member');
+  const memberId = interaction.fields.getTextInputValue('appointment_member_id');
+  const dateInput = interaction.fields.getTextInputValue('appointment_date'); // format: day/month
   const time = interaction.fields.getTextInputValue('appointment_time');
-  const month = interaction.fields.getTextInputValue('appointment_month') || (new Date().getMonth() + 1);
-  const note = interaction.fields.getTextInputValue('appointment_note') || '';
   
   const ministryNames = {
     building: lang === 'ar' ? 'البناء' : 'Building',
@@ -1122,9 +1122,31 @@ async function processMinistryAppointment(interaction, type, userId, lang) {
     training: lang === 'ar' ? 'التدريب' : 'Training'
   };
 
+  // Parse day/month format
+  const dateParts = dateInput.split('/');
+  if (dateParts.length !== 2) {
+    return await interaction.reply({
+      content: lang === 'ar' ? '❌ صيغة التاريخ غير صحيحة. استخدم: يوم/شهر' : '❌ Invalid date format. Use: day/month',
+      ephemeral: true
+    });
+  }
+
+  const day = parseInt(dateParts[0]);
+  const month = parseInt(dateParts[1]);
   const now = new Date();
   const year = now.getFullYear();
-  const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  
+  // Validate time format
+  const timeRegex = /^([01]?[0-9]|2[0-3]):[0-3]0$/;
+  if (!timeRegex.test(time)) {
+    return await interaction.reply({
+      content: lang === 'ar' ? '❌ الوقت غير صحيح. استخدم: 00:00, 00:30, 01:00...' : '❌ Invalid time. Use: 00:00, 00:30, 01:00...',
+      ephemeral: true
+    });
+  }
+
+  const date = `${day}/${month}/${year}`;
+  const alliance = db.getAlliance();
   
   const bookings = db.getBookings('ministry') || [];
   bookings.push({
@@ -1133,7 +1155,9 @@ async function processMinistryAppointment(interaction, type, userId, lang) {
     type: type,
     date: date,
     time: time,
-    note: note,
+    memberName: memberName,
+    memberId: memberId,
+    allianceName: alliance.name || '',
     userId: userId,
     userName: interaction.user.username,
     createdAt: new Date().toISOString()
@@ -1143,8 +1167,8 @@ async function processMinistryAppointment(interaction, type, userId, lang) {
   
   await interaction.reply({
     content: lang === 'ar' 
-      ? `✅ تم حجز موعد ${ministryNames[type]}\n📅 ${date} الساعة ${time}`
-      : `✅ Booked ${ministryNames[type]}\n📅 ${date} at ${time}`,
+      ? `✅ تم حجز موعد ${ministryNames[type]}\n👤 ${memberName}\n📅 ${date} الساعة ${time}`
+      : `✅ Booked ${ministryNames[type]}\n👤 ${memberName}\n📅 ${date} at ${time}`,
     ephemeral: true
   });
 }
@@ -1290,17 +1314,45 @@ async function processSwapButtons(interaction, userId, lang) {
   });
 }
 
+// Button number to ID mapping
+const buttonNumberMap = {
+  1: 'menu_alliance',
+  2: 'menu_ministry_appointments',
+  3: 'menu_members',
+  4: 'menu_logs',
+  5: 'menu_schedule',
+  6: 'menu_reminders',
+  7: 'menu_permissions',
+  8: 'menu_stats',
+  9: 'menu_settings',
+  10: 'menu_help',
+  11: 'lang_switch'
+};
+
 async function processEditLabels(interaction, userId, lang) {
-  const buttonId = interaction.fields.getTextInputValue('button_id');
+  const buttonInput = interaction.fields.getTextInputValue('button_id');
   const labelAr = interaction.fields.getTextInputValue('label_ar');
   const labelEn = interaction.fields.getTextInputValue('label_en');
+  
+  // Convert number to button ID
+  const buttonNum = parseInt(buttonInput);
+  const buttonId = buttonNumberMap[buttonNum] || buttonInput;
+  
+  if (!buttonNumberMap[buttonNum] && !buttonInput.startsWith('menu_')) {
+    return await interaction.reply({
+      content: lang === 'ar' ? '❌ رقم الزر غير صحيح (1-11)' : '❌ Invalid button number (1-11)',
+      ephemeral: true
+    });
+  }
   
   let labels = db.getCustomLabels(userId) || {};
   labels[buttonId] = { ar: labelAr, en: labelEn };
   db.saveCustomLabels(userId, labels);
   
   await interaction.reply({
-    content: lang === 'ar' ? '✅ تم تحديث النص' : '✅ Label updated',
+    content: lang === 'ar' 
+      ? `✅ تم تحديث نص الزر (${buttonNum}: ${labelAr})`
+      : `✅ Label updated (${buttonNum}: ${labelEn})`,
     ephemeral: true
   });
 }

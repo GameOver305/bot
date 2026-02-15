@@ -90,6 +90,45 @@ export async function handleButtonInteraction(interaction) {
       await showEditLabelsModal(interaction, lang);
     }
 
+    // Close menu
+    else if (customId === 'close_menu') {
+      await interaction.message.delete().catch(() => {});
+    }
+
+    // Settings buttons
+    else if (customId === 'settings_buttons') {
+      await interaction.update(ButtonManager.createButtonLayoutMenu(userId, lang));
+    }
+    else if (customId === 'settings_about') {
+      await showAboutMenu(interaction, lang);
+    }
+    else if (customId === 'settings_update') {
+      await checkBotUpdate(interaction, lang);
+    }
+
+    // Admin permission buttons
+    else if (customId === 'perm_add_admin') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ المالك فقط' : '❌ Owner only', ephemeral: true });
+        return;
+      }
+      await showAddAdminModal(interaction, lang);
+    }
+    else if (customId === 'perm_remove_admin') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ المالك فقط' : '❌ Owner only', ephemeral: true });
+        return;
+      }
+      await showRemoveAdminModal(interaction, lang);
+    }
+    else if (customId === 'perm_set_owner') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ المالك فقط' : '❌ Owner only', ephemeral: true });
+        return;
+      }
+      await showSetOwnerModal(interaction, lang);
+    }
+
     // Back buttons
     else if (customId === 'back_main') {
       await interaction.update(ButtonManager.createMainMenu(lang));
@@ -1949,6 +1988,7 @@ async function showAppointmentModal(interaction, type, lang) {
   const now = new Date();
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
+  const alliance = db.getAlliance();
   
   const ministryNames = {
     building: lang === 'ar' ? 'البناء' : 'Building',
@@ -1958,45 +1998,48 @@ async function showAppointmentModal(interaction, type, lang) {
 
   const modal = new ModalBuilder()
     .setCustomId(`modal_appointment_${type}`)
-    .setTitle(lang === 'ar' ? `حجز - ${ministryNames[type]}` : `Book - ${ministryNames[type]}`);
+    .setTitle(lang === 'ar' ? `📅 ${ministryNames[type]}` : `📅 ${ministryNames[type]}`);
 
-  const dayInput = new TextInputBuilder()
-    .setCustomId('appointment_day')
-    .setLabel(lang === 'ar' ? `اليوم (1-31) - ${currentMonth}/${currentYear}` : `Day (1-31) - ${currentMonth}/${currentYear}`)
+  const memberInput = new TextInputBuilder()
+    .setCustomId('appointment_member')
+    .setLabel(lang === 'ar' ? 'اسم العضو' : 'Member Name')
     .setStyle(TextInputStyle.Short)
-    .setPlaceholder('15')
+    .setPlaceholder(interaction.user.username)
+    .setValue(interaction.user.username)
     .setRequired(true)
-    .setMinLength(1)
-    .setMaxLength(2);
+    .setMaxLength(50);
+
+  const memberIdInput = new TextInputBuilder()
+    .setCustomId('appointment_member_id')
+    .setLabel(lang === 'ar' ? 'ID العضو' : 'Member ID')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder(interaction.user.id)
+    .setValue(interaction.user.id)
+    .setRequired(true);
+
+  const dayMonthInput = new TextInputBuilder()
+    .setCustomId('appointment_date')
+    .setLabel(lang === 'ar' ? `اليوم/الشهر (${currentYear})` : `Day/Month (${currentYear})`)
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder(`${now.getDate()}/${currentMonth}`)
+    .setRequired(true)
+    .setMinLength(3)
+    .setMaxLength(5);
 
   const timeInput = new TextInputBuilder()
     .setCustomId('appointment_time')
-    .setLabel(lang === 'ar' ? 'الوقت (00:00 - 23:30)' : 'Time (00:00 - 23:30)')
+    .setLabel(lang === 'ar' ? 'الوقت: 00:00, 00:30... 23:30' : 'Time: 00:00, 00:30... 23:30')
     .setStyle(TextInputStyle.Short)
     .setPlaceholder('14:00')
     .setRequired(true)
     .setMinLength(4)
     .setMaxLength(5);
 
-  const monthInput = new TextInputBuilder()
-    .setCustomId('appointment_month')
-    .setLabel(lang === 'ar' ? `الشهر (فارغ=${currentMonth})` : `Month (empty=${currentMonth})`)
-    .setStyle(TextInputStyle.Short)
-    .setRequired(false)
-    .setMaxLength(2);
-
-  const noteInput = new TextInputBuilder()
-    .setCustomId('appointment_note')
-    .setLabel(lang === 'ar' ? 'ملاحظة' : 'Note')
-    .setStyle(TextInputStyle.Short)
-    .setRequired(false)
-    .setMaxLength(100);
-
   modal.addComponents(
-    new ActionRowBuilder().addComponents(dayInput),
-    new ActionRowBuilder().addComponents(timeInput),
-    new ActionRowBuilder().addComponents(monthInput),
-    new ActionRowBuilder().addComponents(noteInput)
+    new ActionRowBuilder().addComponents(memberInput),
+    new ActionRowBuilder().addComponents(memberIdInput),
+    new ActionRowBuilder().addComponents(dayMonthInput),
+    new ActionRowBuilder().addComponents(timeInput)
   );
 
   await interaction.showModal(modal);
@@ -2130,16 +2173,45 @@ async function showSwapButtonsModal(interaction, lang) {
 }
 
 async function showEditLabelsModal(interaction, lang) {
+  // Show button list with numbers first
+  const buttonList = lang === 'ar' 
+    ? '**🎯 الأزرار:**\n' +
+      '1. التحالف\n' +
+      '2. مواعيد الوزارات\n' +
+      '3. الأعضاء\n' +
+      '4. السجلات\n' +
+      '5. الجدولة\n' +
+      '6. التذكيرات\n' +
+      '7. الأدمن\n' +
+      '8. الإحصائيات\n' +
+      '9. الإعدادات\n' +
+      '10. المساعدة\n' +
+      '11. تغيير اللغة'
+    : '**🎯 Buttons:**\n' +
+      '1. Alliance\n' +
+      '2. Ministry Appointments\n' +
+      '3. Members\n' +
+      '4. Logs\n' +
+      '5. Schedule\n' +
+      '6. Reminders\n' +
+      '7. Admin\n' +
+      '8. Stats\n' +
+      '9. Settings\n' +
+      '10. Help\n' +
+      '11. Language Switch';
+
   const modal = new ModalBuilder()
     .setCustomId('modal_layout_edit_labels')
     .setTitle(lang === 'ar' ? 'تعديل نص' : 'Edit Label');
 
   const buttonInput = new TextInputBuilder()
     .setCustomId('button_id')
-    .setLabel(lang === 'ar' ? 'معرف الزر' : 'Button ID')
+    .setLabel(lang === 'ar' ? 'رقم الزر (1-11)' : 'Button Number (1-11)')
     .setStyle(TextInputStyle.Short)
-    .setPlaceholder('menu_alliance')
-    .setRequired(true);
+    .setPlaceholder('1')
+    .setRequired(true)
+    .setMinLength(1)
+    .setMaxLength(2);
 
   const labelArInput = new TextInputBuilder()
     .setCustomId('label_ar')
@@ -2158,5 +2230,49 @@ async function showEditLabelsModal(interaction, lang) {
     new ActionRowBuilder().addComponents(labelArInput),
     new ActionRowBuilder().addComponents(labelEnInput)
   );
-  await interaction.showModal(modal);
+  
+  // Show button list hint
+  await interaction.reply({ content: buttonList, ephemeral: true });
+  
+  // Wait small amount then show modal
+  setTimeout(async () => {
+    try {
+      await interaction.followUp({ content: lang === 'ar' ? 'جاري فتح النموذج...' : 'Opening modal...', ephemeral: true });
+    } catch (e) {}
+  }, 100);
 }
+
+// About menu
+async function showAboutMenu(interaction, lang) {
+  const aboutData = db.getAboutData() || {};
+  const content = aboutData.content || (lang === 'ar' 
+    ? '**معلومات البوت**\n\nبوت إدارة التحالف\nالإصدار: 2.1.0'
+    : '**Bot Information**\n\nAlliance Management Bot\nVersion: 2.1.0');
+  
+  await interaction.reply({ content, ephemeral: true });
+}
+
+// Check for bot updates
+async function checkBotUpdate(interaction, lang) {
+  await interaction.reply({ 
+    content: lang === 'ar' 
+      ? '✅ البوت محدث إلى أحدث إصدار (2.1.0)\n\nللتحديث اليدوي:\n```\ngit pull origin main\nnpm install\n```'
+      : '✅ Bot is up to date (Version 2.1.0)\n\nFor manual update:\n```\ngit pull origin main\nnpm install\n```',
+    ephemeral: true 
+  });
+}
+
+// Button number mapping for edit labels
+const buttonNumberMap = {
+  1: 'menu_alliance',
+  2: 'menu_ministry_appointments',
+  3: 'menu_members',
+  4: 'menu_logs',
+  5: 'menu_schedule',
+  6: 'menu_reminders',
+  7: 'menu_permissions',
+  8: 'menu_stats',
+  9: 'menu_settings',
+  10: 'menu_help',
+  11: 'lang_switch'
+};

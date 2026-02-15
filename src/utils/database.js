@@ -111,7 +111,7 @@ class Database {
   // User preferences
   getUser(userId) {
     const users = this.read('users');
-    return users[userId] || { language: 'ar', notifications: true };
+    return users[userId] || { language: 'en', notifications: true };
   }
 
   setUser(userId, data) {
@@ -624,6 +624,35 @@ class Database {
       ]
     };
     return this.write('button_layout', defaultLayout);
+  }
+
+  // About data management
+  getAboutData() {
+    const data = this.read('users');
+    return data._about || { content: '' };
+  }
+
+  setAboutData(content) {
+    const data = this.read('users');
+    data._about = { content, updatedAt: new Date().toISOString() };
+    return this.write('users', data);
+  }
+
+  // Custom labels management
+  getCustomLabels(userId) {
+    const user = this.getUser(userId);
+    return user.customLabels || {};
+  }
+
+  saveCustomLabels(userId, labels) {
+    return this.setUser(userId, { customLabels: labels });
+  }
+
+  // Save bookings for ministry type
+  saveBookings(type, bookings) {
+    const allBookings = this.read('bookings');
+    allBookings[type] = bookings;
+    return this.write('bookings', allBookings);
   }
 }
 

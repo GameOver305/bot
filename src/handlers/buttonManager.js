@@ -53,7 +53,7 @@ export class ButtonManager {
       .addComponents(
         new ButtonBuilder()
           .setCustomId('menu_permissions')
-          .setLabel(lang === 'ar' ? '🔐 الصلاحيات' : '🔐 Permissions')
+          .setLabel(lang === 'ar' ? '� الأدمن' : '👮 Admin')
           .setStyle(ButtonStyle.Danger),
         new ButtonBuilder()
           .setCustomId('menu_stats')
@@ -270,11 +270,14 @@ export class ButtonManager {
     
     const embed = new EmbedBuilder()
       .setColor('#ffff00')
-      .setTitle(t(lang, 'settings.title'))
-      .setDescription(t(lang, 'settings.description'))
+      .setTitle(lang === 'ar' ? '⚙️ الإعدادات' : '⚙️ Settings')
+      .setDescription(lang === 'ar' 
+        ? 'إعدادات البوت والتخصيص'
+        : 'Bot settings and customization')
       .addFields(
-        { name: '🌐 اللغة الحالية', value: user.language === 'ar' ? 'العربية' : 'English', inline: true },
-        { name: '🔔 التذكيرات', value: user.notifications ? 'مفعلة' : 'معطلة', inline: true }
+        { name: lang === 'ar' ? '🌐 اللغة' : '🌐 Language', value: user.language === 'ar' ? 'العربية' : 'English', inline: true },
+        { name: lang === 'ar' ? '🔔 التذكيرات' : '🔔 Reminders', value: user.notifications ? (lang === 'ar' ? 'مفعلة' : 'Enabled') : (lang === 'ar' ? 'معطلة' : 'Disabled'), inline: true },
+        { name: lang === 'ar' ? '📦 الإصدار' : '📦 Version', value: '2.1.0', inline: true }
       )
       .setTimestamp();
 
@@ -287,22 +290,42 @@ export class ButtonManager {
         new ButtonBuilder()
           .setCustomId('settings_lang_en')
           .setLabel('🇺🇸 English')
-          .setStyle(user.language === 'en' ? ButtonStyle.Success : ButtonStyle.Secondary)
+          .setStyle(user.language === 'en' ? ButtonStyle.Success : ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId('settings_notifications')
+          .setLabel(user.notifications ? '🔕' : '🔔')
+          .setStyle(ButtonStyle.Primary)
       );
 
     const row2 = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
-          .setCustomId('settings_notifications')
-          .setLabel(user.notifications ? '🔕 تعطيل التذكيرات' : '🔔 تفعيل التذكيرات')
+          .setCustomId('settings_buttons')
+          .setLabel(lang === 'ar' ? '🎨 تخصيص الأزرار' : '🎨 Customize Buttons')
           .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
-          .setCustomId('back_main')
-          .setLabel(t(lang, 'settings.back'))
-          .setStyle(ButtonStyle.Secondary)
+          .setCustomId('settings_about')
+          .setLabel(lang === 'ar' ? 'ℹ️ عن البوت' : 'ℹ️ About')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId('settings_update')
+          .setLabel(lang === 'ar' ? '🔄 تحديث' : '🔄 Update')
+          .setStyle(ButtonStyle.Success)
       );
 
-    const components = [row1, row2];
+    const row3 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('back_main')
+          .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId('close_menu')
+          .setLabel(lang === 'ar' ? '❌ إغلاق' : '❌ Close')
+          .setStyle(ButtonStyle.Danger)
+      );
+
+    const components = [row1, row2, row3];
 
     // Add Owner Admin button if user is owner
     if (isOwner) {
@@ -313,7 +336,7 @@ export class ButtonManager {
             .setLabel(lang === 'ar' ? '👑 إدارة المالك' : '👑 Owner Admin')
             .setStyle(ButtonStyle.Danger)
         );
-      components.splice(1, 0, ownerRow); // Insert before back button
+      components.splice(2, 0, ownerRow); // Insert before navigation row
     }
 
     return { embeds: [embed], components };
@@ -322,35 +345,53 @@ export class ButtonManager {
   static createPermissionsMenu(lang = 'en') {
     const perms = db.getPermissions();
     
-    let adminList = 'لا يوجد مشرفين';
+    let adminList = lang === 'ar' ? 'لا يوجد مشرفين' : 'No admins';
     if (perms.admins.length > 0) {
       adminList = perms.admins.map(id => `<@${id}>`).join('\n');
     }
 
     const embed = new EmbedBuilder()
       .setColor('#ff0000')
-      .setTitle(t(lang, 'permissions.title'))
-      .setDescription(t(lang, 'permissions.description'))
+      .setTitle(lang === 'ar' ? '👮 إدارة الأدمن والمالك' : '👮 Admin & Owner Management')
+      .setDescription(lang === 'ar' 
+        ? 'إدارة صلاحيات المشرفين والمالك'
+        : 'Manage admin and owner permissions')
       .addFields(
-        { name: '👑 المالك', value: perms.owner ? `<@${perms.owner}>` : 'غير محدد', inline: false },
-        { name: '👮 المشرفين', value: adminList, inline: false }
+        { name: lang === 'ar' ? '👑 المالك' : '👑 Owner', value: perms.owner ? `<@${perms.owner}>` : (lang === 'ar' ? 'غير محدد' : 'Not set'), inline: false },
+        { name: lang === 'ar' ? '👮 المشرفين' : '👮 Admins', value: adminList, inline: false }
       )
       .setTimestamp();
 
     const row1 = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
-          .setCustomId('perm_manage_admins')
-          .setLabel(lang === 'ar' ? '👮 إدارة المشرفين' : '👮 Manage Admins')
+          .setCustomId('perm_add_admin')
+          .setLabel(lang === 'ar' ? '➕ إضافة أدمن' : '➕ Add Admin')
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId('perm_remove_admin')
+          .setLabel(lang === 'ar' ? '➖ إزالة أدمن' : '➖ Remove Admin')
+          .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
+          .setCustomId('perm_set_owner')
+          .setLabel(lang === 'ar' ? '👑 تغيير المالك' : '👑 Change Owner')
           .setStyle(ButtonStyle.Primary)
       );
 
     const row2 = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
+          .setCustomId('perm_manage_admins')
+          .setLabel(lang === 'ar' ? '📋 قائمة المشرفين' : '📋 Admin List')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
           .setCustomId('back_main')
-          .setLabel(t(lang, 'permissions.back'))
-          .setStyle(ButtonStyle.Secondary)
+          .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId('close_menu')
+          .setLabel(lang === 'ar' ? '❌ إغلاق' : '❌ Close')
+          .setStyle(ButtonStyle.Danger)
       );
 
     return { embeds: [embed], components: [row1, row2] };
