@@ -1050,6 +1050,16 @@ export class ButtonManager {
     const row2 = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
+          .setCustomId('owner_auto_update')
+          .setLabel(lang === 'ar' ? '🔄 تحديث البوت' : '🔄 Update Bot')
+          .setStyle(ButtonStyle.Success)
+          .setDisabled(!isOwner),
+        new ButtonBuilder()
+          .setCustomId('owner_default_lang')
+          .setLabel(lang === 'ar' ? '🌍 اللغة الافتراضية' : '🌍 Default Language')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!isOwner),
+        new ButtonBuilder()
           .setCustomId('back_main')
           .setLabel(lang === 'ar' ? '◀️ القائمة الرئيسية' : '◀️ Main Menu')
           .setStyle(ButtonStyle.Secondary)

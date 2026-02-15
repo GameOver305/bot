@@ -242,6 +242,66 @@ export async function handleButtonInteraction(interaction) {
       await interaction.update(ButtonManager.createPermissionsMenu(userId, lang));
     }
 
+    // Auto Update Bot
+    else if (customId === 'owner_auto_update') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
+        return;
+      }
+      await interaction.deferReply({ ephemeral: true });
+      
+      try {
+        const { exec } = await import('child_process');
+        const { promisify } = await import('util');
+        const execAsync = promisify(exec);
+        
+        // Git pull
+        await interaction.editReply({ 
+          content: lang === 'ar' ? '🔄 جاري سحب التحديثات من GitHub...' : '🔄 Pulling updates from GitHub...' 
+        });
+        
+        const { stdout: pullOutput, stderr: pullError } = await execAsync('git pull origin main', { cwd: process.cwd() });
+        
+        if (pullOutput.includes('Already up to date') || pullOutput.includes('Already up-to-date')) {
+          await interaction.editReply({ 
+            content: lang === 'ar' 
+              ? '✅ البوت محدث بالفعل! لا توجد تحديثات جديدة.' 
+              : '✅ Bot is already up to date! No new updates.' 
+          });
+          return;
+        }
+        
+        // Install dependencies if package.json changed
+        if (pullOutput.includes('package.json') || pullOutput.includes('package-lock.json')) {
+          await interaction.editReply({ 
+            content: lang === 'ar' ? '📦 جاري تثبيت المتطلبات الجديدة...' : '📦 Installing new dependencies...' 
+          });
+          await execAsync('npm install', { cwd: process.cwd() });
+        }
+        
+        await interaction.editReply({ 
+          content: lang === 'ar' 
+            ? '✅ تم التحديث بنجاح!\n\n🔄 **جاري إعادة تشغيل البوت...**\n\n' +
+              '```\n' + pullOutput.substring(0, 500) + '\n```'
+            : '✅ Update successful!\n\n🔄 **Restarting bot...**\n\n' +
+              '```\n' + pullOutput.substring(0, 500) + '\n```'
+        });
+        
+        // Restart bot after 2 seconds
+        setTimeout(() => {
+          process.exit(0); // PM2 or hosting will restart the bot
+        }, 2000);
+        
+      } catch (error) {
+        console.error('Update error:', error);
+        await interaction.editReply({ 
+          content: lang === 'ar' 
+            ? `❌ خطأ في التحديث:\n\`\`\`\n${error.message}\n\`\`\`\n\n💡 تأكد أن Git مثبت على السيرفر.`
+            : `❌ Update error:\n\`\`\`\n${error.message}\n\`\`\`\n\n💡 Make sure Git is installed on the server.`
+        });
+      }
+    }
+
     // Guild Management
     else if (customId === 'guild_add') {
       if (!db.isOwner(userId)) {
