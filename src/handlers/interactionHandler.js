@@ -143,7 +143,7 @@ export async function handleButtonInteraction(interaction) {
       await interaction.update(ButtonManager.createAllianceMenu(lang));
     }
     else if (customId === 'back_permissions') {
-      await interaction.update(ButtonManager.createPermissionsMenu(lang));
+      await interaction.update(ButtonManager.createPermissionsMenu(userId, lang));
     }
     else if (customId === 'back_owner_admin') {
       await interaction.update(ButtonManager.createOwnerAdminMenu(userId, lang));
@@ -176,7 +176,7 @@ export async function handleButtonInteraction(interaction) {
         await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
         return;
       }
-      await interaction.update(ButtonManager.createPermissionsMenu(lang));
+      await interaction.update(ButtonManager.createPermissionsMenu(userId, lang));
     }
 
     // Guild Management
