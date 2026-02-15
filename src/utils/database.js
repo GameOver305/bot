@@ -229,13 +229,21 @@ class Database {
 
   isOwner(userId) {
     const perms = this.read('permissions');
-    // Check from permissions file OR from .env OWNER_ID
-    return perms.owner === userId || process.env.OWNER_ID === userId;
+    const envOwnerId = process.env.OWNER_ID;
+    const permOwnerId = perms.owner;
+    
+    // Convert both to string for comparison
+    const userIdStr = String(userId);
+    const envOwnerStr = envOwnerId ? String(envOwnerId).trim() : '';
+    const permOwnerStr = permOwnerId ? String(permOwnerId).trim() : '';
+    
+    return userIdStr === permOwnerStr || userIdStr === envOwnerStr;
   }
 
   isAdmin(userId) {
     const perms = this.read('permissions');
-    return perms.admins.includes(userId) || perms.owner === userId;
+    // Check if user is admin or owner (from permissions or .env)
+    return perms.admins.includes(userId) || perms.admins.includes(String(userId)) || this.isOwner(userId);
   }
 
   hasAlliancePermission(userId) {
