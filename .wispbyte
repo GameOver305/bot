@@ -1,0 +1,15 @@
+{
+  "version": "1.0",
+  "runtime": "nodejs",
+  "nodeVersion": "18.x",
+  "startCommand": "npm start",
+  "buildCommand": "npm install",
+  "autoRestart": true,
+  "restartOnCrash": true,
+  "environmentVariables": [
+    "DISCORD_TOKEN",
+    "OWNER_ID",
+    "GUILD_ID",
+    "NODE_ENV"
+  ]
+}
