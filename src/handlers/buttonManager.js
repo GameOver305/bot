@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder, UserSelectMenuBuilder, ChannelSelectMenuBuilder, ChannelType } from 'discord.js';
 import { t } from '../utils/translations.js';
 import db from '../utils/database.js';
 
@@ -1174,7 +1174,6 @@ export class ButtonManager {
   static createButtonLayoutMenu(userId, lang = 'en', selectedBtn = null) {
     const isOwner = db.isOwner(userId);
     const layout = db.getButtonLayout();
-    const { StringSelectMenuBuilder } = require('discord.js');
 
     const buttonNames = {
       menu_alliance: { ar: '🤝 التحالف', en: '🤝 Alliance' },
@@ -1317,7 +1316,6 @@ export class ButtonManager {
   static createButtonSwapMenu(userId, lang = 'en', selectedFirst = null) {
     const isOwner = db.isOwner(userId);
     const layout = db.getButtonLayout();
-    const { StringSelectMenuBuilder } = require('discord.js');
 
     const buttonNames = {
       menu_alliance: { ar: '🤝 التحالف', en: '🤝 Alliance' },
@@ -1432,7 +1430,6 @@ export class ButtonManager {
 
   // Admin Selection Menu with User Select
   static createAdminSelectMenu(userId, lang = 'en', action = 'add') {
-    const { UserSelectMenuBuilder } = require('discord.js');
     const perms = db.getPermissions();
     
     const embed = new EmbedBuilder()
@@ -1482,8 +1479,6 @@ export class ButtonManager {
 
   // Log Channel Selection Menu
   static createLogChannelMenu(userId, lang = 'en') {
-    const { ChannelSelectMenuBuilder, ChannelType } = require('discord.js');
-    
     const embed = new EmbedBuilder()
       .setColor('#0099ff')
       .setTitle(lang === 'ar' ? '📜 تعيين قناة السجلات' : '📜 Set Log Channel')

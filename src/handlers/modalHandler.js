@@ -121,6 +121,20 @@ export async function handleModalSubmit(interaction) {
     else if (customId === 'security_unban_modal') {
       await processUnbanUser(interaction, userId, lang);
     }
+    // Advanced Member Modals
+    else if (customId === 'modal_member_add_advanced') {
+      await processAdvancedMemberAdd(interaction, userId, lang);
+    }
+    else if (customId === 'modal_member_edit_game') {
+      await processAdvancedMemberEdit(interaction, userId, lang);
+    }
+    else if (customId === 'modal_member_view_profile') {
+      await processMemberViewProfile(interaction, userId, lang);
+    }
+    else if (customId.startsWith('modal_member_edit_')) {
+      const memberId = customId.replace('modal_member_edit_', '');
+      await processEditMember(interaction, memberId, userId, lang);
+    }
   } catch (error) {
     console.error('Error handling modal submit:', error);
     await interaction.reply({ 
@@ -1442,4 +1456,170 @@ async function processUnbanUser(interaction, userId, lang) {
       ephemeral: true
     });
   }
+}
+// Process Advanced Member Add
+async function processAdvancedMemberAdd(interaction, userId, lang) {
+  if (!db.isAdmin(userId)) {
+    return await interaction.reply({
+      content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only',
+      ephemeral: true
+    });
+  }
+  
+  const gameId = interaction.fields.getTextInputValue('game_id').trim();
+  const gameName = interaction.fields.getTextInputValue('game_name').trim();
+  const powerStr = interaction.fields.getTextInputValue('power') || '0';
+  const furnaceStr = interaction.fields.getTextInputValue('furnace_level') || '0';
+  const rank = interaction.fields.getTextInputValue('rank') || 'R1';
+  
+  const power = parseFloat(powerStr) * 1000000; // Convert to actual value
+  const furnaceLevel = parseInt(furnaceStr) || 0;
+  
+  const member = {
+    id: `game_${gameId}`,
+    gameId,
+    gameName,
+    name: gameName,
+    power,
+    furnaceLevel,
+    rank: rank.toUpperCase(),
+    joinedAt: new Date().toISOString(),
+    lastActive: new Date().toISOString()
+  };
+  
+  const alliance = db.getAlliance();
+  if (!alliance.members) alliance.members = [];
+  
+  // Check if member already exists
+  const existing = alliance.members.find(m => m.gameId === gameId);
+  if (existing) {
+    return await interaction.reply({
+      content: lang === 'ar' ? '❌ هذا العضو موجود بالفعل' : '❌ This member already exists',
+      ephemeral: true
+    });
+  }
+  
+  alliance.members.push(member);
+  db.saveAlliance(alliance);
+  db.addActivityLog('add_member', userId, { gameId, gameName });
+  
+  await interaction.reply({
+    content: lang === 'ar'
+      ? `✅ تم إضافة العضو بنجاح!\n\n🎮 **${gameName}** | ID: ${gameId} | رتبة: ${rank}`
+      : `✅ Member added successfully!\n\n🎮 **${gameName}** | ID: ${gameId} | Rank: ${rank}`,
+    ephemeral: true
+  });
+}
+
+// Process Advanced Member Edit
+async function processAdvancedMemberEdit(interaction, userId, lang) {
+  if (!db.isAdmin(userId)) {
+    return await interaction.reply({
+      content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only',
+      ephemeral: true
+    });
+  }
+  
+  const gameId = interaction.fields.getTextInputValue('game_id').trim();
+  const gameName = interaction.fields.getTextInputValue('game_name').trim();
+  
+  const alliance = db.getAlliance();
+  const member = alliance.members?.find(m => m.gameId === gameId);
+  
+  if (!member) {
+    return await interaction.reply({
+      content: lang === 'ar' ? '❌ العضو غير موجود' : '❌ Member not found',
+      ephemeral: true
+    });
+  }
+  
+  const powerStr = interaction.fields.getTextInputValue('power') || '0';
+  const furnaceStr = interaction.fields.getTextInputValue('furnace_level') || '0';
+  const rank = interaction.fields.getTextInputValue('rank') || member.rank;
+  
+  member.gameName = gameName;
+  member.name = gameName;
+  member.power = parseFloat(powerStr) * 1000000;
+  member.furnaceLevel = parseInt(furnaceStr) || 0;
+  member.rank = rank.toUpperCase();
+  member.lastActive = new Date().toISOString();
+  
+  db.saveAlliance(alliance);
+  db.addActivityLog('edit_member', userId, { gameId, gameName });
+  
+  await interaction.reply({
+    content: lang === 'ar'
+      ? `✅ تم تحديث بيانات العضو بنجاح!`
+      : `✅ Member data updated successfully!`,
+    ephemeral: true
+  });
+}
+
+// Process Member View Profile
+async function processMemberViewProfile(interaction, userId, lang) {
+  const searchQuery = interaction.fields.getTextInputValue('search_query').trim();
+  
+  const alliance = db.getAlliance();
+  const member = alliance.members?.find(m => 
+    m.gameId === searchQuery || 
+    m.gameName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    m.name?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  
+  if (!member) {
+    return await interaction.reply({
+      content: lang === 'ar' ? '❌ العضو غير موجود' : '❌ Member not found',
+      ephemeral: true
+    });
+  }
+  
+  const { ButtonManager } = await import('./buttonManager.js');
+  await interaction.reply({
+    ...ButtonManager.createMemberProfileMenu(member.id || member.gameId, lang),
+    ephemeral: true
+  });
+}
+
+// Process Edit Member
+async function processEditMember(interaction, memberId, userId, lang) {
+  if (!db.isAdmin(userId)) {
+    return await interaction.reply({
+      content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only',
+      ephemeral: true
+    });
+  }
+  
+  const alliance = db.getAlliance();
+  const member = alliance.members?.find(m => m.id === memberId || m.gameId === memberId);
+  
+  if (!member) {
+    return await interaction.reply({
+      content: lang === 'ar' ? '❌ العضو غير موجود' : '❌ Member not found',
+      ephemeral: true
+    });
+  }
+  
+  const gameId = interaction.fields.getTextInputValue('game_id').trim();
+  const gameName = interaction.fields.getTextInputValue('game_name').trim();
+  const powerStr = interaction.fields.getTextInputValue('power') || '0';
+  const furnaceStr = interaction.fields.getTextInputValue('furnace_level') || '0';
+  const rank = interaction.fields.getTextInputValue('rank') || member.rank;
+  
+  member.gameId = gameId;
+  member.gameName = gameName;
+  member.name = gameName;
+  member.power = parseFloat(powerStr) * 1000000;
+  member.furnaceLevel = parseInt(furnaceStr) || 0;
+  member.rank = rank.toUpperCase();
+  member.lastActive = new Date().toISOString();
+  
+  db.saveAlliance(alliance);
+  db.addActivityLog('edit_member', userId, { gameId, gameName });
+  
+  await interaction.reply({
+    content: lang === 'ar'
+      ? `✅ تم تحديث بيانات العضو **${gameName}** بنجاح!`
+      : `✅ Member **${gameName}** updated successfully!`,
+    ephemeral: true
+  });
 }

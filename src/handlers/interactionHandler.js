@@ -205,9 +205,6 @@ export async function handleButtonInteraction(interaction) {
     else if (customId === 'back_alliance') {
       await interaction.update(ButtonManager.createAllianceMenu(lang));
     }
-    else if (customId === 'back_permissions') {
-      await interaction.update(ButtonManager.createPermissionsMenu(userId, lang));
-    }
     else if (customId === 'back_owner_admin') {
       await interaction.update(ButtonManager.createOwnerAdminMenu(userId, lang));
     }
@@ -468,8 +465,8 @@ export async function handleButtonInteraction(interaction) {
         await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
         return;
       }
-      const fs = require('fs');
-      const path = require('path');
+      const fs = await import('fs');
+      const path = await import('path');
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const backupDir = path.join(process.cwd(), 'data', 'backups');
       
@@ -517,6 +514,125 @@ export async function handleButtonInteraction(interaction) {
         return;
       }
       await showUnbanUserModal(interaction, lang);
+    }
+
+    // Security Restore
+    else if (customId === 'security_restore') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
+        return;
+      }
+      const fs = await import('fs');
+      const path = await import('path');
+      const backupDir = path.join(process.cwd(), 'data', 'backups');
+      
+      if (!fs.existsSync(backupDir)) {
+        await interaction.reply({
+          content: lang === 'ar' ? '❌ لا توجد نسخ احتياطية' : '❌ No backups found',
+          ephemeral: true
+        });
+        return;
+      }
+      
+      const files = fs.readdirSync(backupDir);
+      if (files.length === 0) {
+        await interaction.reply({
+          content: lang === 'ar' ? '❌ لا توجد نسخ احتياطية' : '❌ No backups found',
+          ephemeral: true
+        });
+        return;
+      }
+      
+      // Get latest backup for each file type
+      const latestBackups = {};
+      for (const file of files) {
+        const parts = file.split('_');
+        if (parts.length >= 2) {
+          const fileType = parts.slice(1).join('_'); // e.g., users.json
+          if (!latestBackups[fileType] || file > latestBackups[fileType]) {
+            latestBackups[fileType] = file;
+          }
+        }
+      }
+      
+      let restored = 0;
+      for (const [fileType, backupFile] of Object.entries(latestBackups)) {
+        const srcPath = path.join(backupDir, backupFile);
+        const destPath = path.join(process.cwd(), 'data', fileType);
+        if (fs.existsSync(srcPath)) {
+          fs.copyFileSync(srcPath, destPath);
+          restored++;
+        }
+      }
+      
+      db.clearCache(); // Clear cache after restore
+      
+      await interaction.reply({
+        content: lang === 'ar' 
+          ? `✅ **تم استعادة النسخة الاحتياطية!**\n\n📁 **ملفات مستعادة:** ${restored}`
+          : `✅ **Backup restored!**\n\n📁 **Files restored:** ${restored}`,
+        ephemeral: true
+      });
+    }
+
+    // Advanced Member Management
+    else if (customId === 'member_add_advanced') {
+      if (!db.isAdmin(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only', ephemeral: true });
+        return;
+      }
+      await showAdvancedMemberModal(interaction, lang, 'add');
+    }
+    else if (customId === 'member_edit_game') {
+      if (!db.isAdmin(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only', ephemeral: true });
+        return;
+      }
+      await showAdvancedMemberModal(interaction, lang, 'edit');
+    }
+    else if (customId === 'member_set_leader') {
+      if (!db.isAdmin(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only', ephemeral: true });
+        return;
+      }
+      await showSetLeaderModal(interaction, lang);
+    }
+    else if (customId === 'member_view_profile') {
+      await showMemberProfileModal(interaction, lang);
+    }
+    else if (customId === 'member_export') {
+      if (!db.isAdmin(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only', ephemeral: true });
+        return;
+      }
+      const alliance = db.getAlliance();
+      const members = alliance.members || [];
+      
+      if (members.length === 0) {
+        await interaction.reply({
+          content: lang === 'ar' ? '❌ لا يوجد أعضاء للتصدير' : '❌ No members to export',
+          ephemeral: true
+        });
+        return;
+      }
+      
+      let exportText = lang === 'ar' ? '📋 **قائمة الأعضاء:**\n\n' : '📋 **Members List:**\n\n';
+      members.forEach((m, i) => {
+        exportText += `${i+1}. ${m.gameName || m.name || 'Unknown'} | ${m.gameId || '-'} | ${m.rank || 'R1'} | Power: ${m.power ? (m.power/1000000).toFixed(1)+'M' : '-'}\n`;
+      });
+      
+      await interaction.reply({
+        content: exportText,
+        ephemeral: true
+      });
+    }
+    else if (customId.startsWith('member_edit_')) {
+      const memberId = customId.replace('member_edit_', '');
+      if (!db.isAdmin(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only', ephemeral: true });
+        return;
+      }
+      await showEditMemberModal(interaction, memberId, lang);
     }
 
     // Guild Management
@@ -1723,6 +1839,135 @@ async function showUnbanUserModal(interaction, lang) {
 
   modal.addComponents(
     new ActionRowBuilder().addComponents(userIdInput)
+  );
+
+  await interaction.showModal(modal);
+}
+
+// === Advanced Member Modal ===
+async function showAdvancedMemberModal(interaction, lang, action = 'add') {
+  const modal = new ModalBuilder()
+    .setCustomId(action === 'add' ? 'modal_member_add_advanced' : 'modal_member_edit_game')
+    .setTitle(lang === 'ar' 
+      ? (action === 'add' ? 'إضافة عضو جديد' : 'تعديل بيانات العضو')
+      : (action === 'add' ? 'Add New Member' : 'Edit Member Data'));
+
+  const gameIdInput = new TextInputBuilder()
+    .setCustomId('game_id')
+    .setLabel(lang === 'ar' ? 'ID اللعبة' : 'Game ID')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('123456789')
+    .setRequired(true);
+
+  const gameNameInput = new TextInputBuilder()
+    .setCustomId('game_name')
+    .setLabel(lang === 'ar' ? 'اسم اللعبة' : 'Game Name')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder(lang === 'ar' ? 'اسم الحساب في اللعبة' : 'In-game account name')
+    .setRequired(true);
+
+  const powerInput = new TextInputBuilder()
+    .setCustomId('power')
+    .setLabel(lang === 'ar' ? 'القوة (بالملايين)' : 'Power (in millions)')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('50')
+    .setRequired(false);
+
+  const furnaceInput = new TextInputBuilder()
+    .setCustomId('furnace_level')
+    .setLabel(lang === 'ar' ? 'مستوى الفرن' : 'Furnace Level')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('30')
+    .setRequired(false);
+
+  const rankInput = new TextInputBuilder()
+    .setCustomId('rank')
+    .setLabel(lang === 'ar' ? 'الرتبة (R1-R5)' : 'Rank (R1-R5)')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('R4')
+    .setRequired(false);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(gameIdInput),
+    new ActionRowBuilder().addComponents(gameNameInput),
+    new ActionRowBuilder().addComponents(powerInput),
+    new ActionRowBuilder().addComponents(furnaceInput),
+    new ActionRowBuilder().addComponents(rankInput)
+  );
+
+  await interaction.showModal(modal);
+}
+
+// === Member Profile Modal ===
+async function showMemberProfileModal(interaction, lang) {
+  const modal = new ModalBuilder()
+    .setCustomId('modal_member_view_profile')
+    .setTitle(lang === 'ar' ? 'عرض ملف العضو' : 'View Member Profile');
+
+  const searchInput = new TextInputBuilder()
+    .setCustomId('search_query')
+    .setLabel(lang === 'ar' ? 'ID اللعبة أو الاسم' : 'Game ID or Name')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder(lang === 'ar' ? 'ابحث بـ ID اللعبة أو الاسم' : 'Search by Game ID or Name')
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(searchInput)
+  );
+
+  await interaction.showModal(modal);
+}
+
+// === Edit Member Modal ===
+async function showEditMemberModal(interaction, memberId, lang) {
+  const alliance = db.getAlliance();
+  const member = alliance.members?.find(m => m.id === memberId || m.gameId === memberId);
+  
+  const modal = new ModalBuilder()
+    .setCustomId(`modal_member_edit_${memberId}`)
+    .setTitle(lang === 'ar' ? 'تعديل بيانات العضو' : 'Edit Member Data');
+
+  const gameIdInput = new TextInputBuilder()
+    .setCustomId('game_id')
+    .setLabel(lang === 'ar' ? 'ID اللعبة' : 'Game ID')
+    .setStyle(TextInputStyle.Short)
+    .setValue(member?.gameId || '')
+    .setRequired(true);
+
+  const gameNameInput = new TextInputBuilder()
+    .setCustomId('game_name')
+    .setLabel(lang === 'ar' ? 'اسم اللعبة' : 'Game Name')
+    .setStyle(TextInputStyle.Short)
+    .setValue(member?.gameName || member?.name || '')
+    .setRequired(true);
+
+  const powerInput = new TextInputBuilder()
+    .setCustomId('power')
+    .setLabel(lang === 'ar' ? 'القوة (بالملايين)' : 'Power (in millions)')
+    .setStyle(TextInputStyle.Short)
+    .setValue(member?.power ? String(member.power / 1000000) : '')
+    .setRequired(false);
+
+  const furnaceInput = new TextInputBuilder()
+    .setCustomId('furnace_level')
+    .setLabel(lang === 'ar' ? 'مستوى الفرن' : 'Furnace Level')
+    .setStyle(TextInputStyle.Short)
+    .setValue(member?.furnaceLevel?.toString() || '')
+    .setRequired(false);
+
+  const rankInput = new TextInputBuilder()
+    .setCustomId('rank')
+    .setLabel(lang === 'ar' ? 'الرتبة (R1-R5)' : 'Rank (R1-R5)')
+    .setStyle(TextInputStyle.Short)
+    .setValue(member?.rank || 'R1')
+    .setRequired(false);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(gameIdInput),
+    new ActionRowBuilder().addComponents(gameNameInput),
+    new ActionRowBuilder().addComponents(powerInput),
+    new ActionRowBuilder().addComponents(furnaceInput),
+    new ActionRowBuilder().addComponents(rankInput)
   );
 
   await interaction.showModal(modal);

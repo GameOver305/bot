@@ -232,6 +232,10 @@ class Database {
     return this.read('alliance');
   }
 
+  saveAlliance(alliance) {
+    return this.write('alliance', alliance);
+  }
+
   updateAlliance(data) {
     const alliance = this.read('alliance');
     return this.write('alliance', { ...alliance, ...data });
@@ -887,6 +891,53 @@ class Database {
     const allBookings = this.read('bookings');
     allBookings[type] = bookings;
     return this.write('bookings', allBookings);
+  }
+
+  // Save button layout (per user or global)
+  saveButtonLayout(userId, layout) {
+    // For now we use global layout, but store userId preference
+    return this.write('button_layout', layout);
+  }
+
+  // Save reminders for user
+  saveReminders(userId, reminders) {
+    const data = this.read('reminders');
+    data[userId] = reminders;
+    return this.write('reminders', data);
+  }
+
+  // Get user reminders
+  getUserReminders(userId) {
+    const data = this.read('reminders');
+    return data[userId] || [];
+  }
+
+  // hasAlliancePermission with rank array support
+  hasAlliancePermission(userId, allowedRanks = ['R5', 'R4']) {
+    const alliance = this.read('alliance');
+    const member = alliance.members?.find(m => m.id === userId);
+    if (!member) return false;
+    
+    // Handle both array and string
+    if (Array.isArray(allowedRanks)) {
+      return allowedRanks.includes(member.rank);
+    }
+    return member.rank === allowedRanks;
+  }
+
+  // Assign minister by ministry name
+  assignMinisterByName(ministryName, userId) {
+    const ministries = this.read('ministries');
+    const ministry = ministries.ministries?.find(m => 
+      m.name.toLowerCase() === ministryName.toLowerCase()
+    );
+    
+    if (!ministry) return { success: false, error: 'Ministry not found' };
+    
+    ministry.ministerId = userId;
+    ministry.assignedAt = new Date().toISOString();
+    this.write('ministries', ministries);
+    return { success: true, ministry };
   }
 }
 
