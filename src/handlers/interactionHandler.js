@@ -19,8 +19,8 @@ export async function handleButtonInteraction(interaction) {
     }
 
     // Main menu navigation
-    if (customId === 'menu_bookings') {
-      await interaction.update(ButtonManager.createBookingsMenu(lang));
+    if (customId === 'menu_bookings' || customId === 'menu_ministry_appointments') {
+      await interaction.update(ButtonManager.createMinistryAppointmentsMenu(lang));
     } 
     else if (customId === 'menu_alliance') {
       await interaction.update(ButtonManager.createAllianceMenu(lang));
@@ -49,14 +49,45 @@ export async function handleButtonInteraction(interaction) {
     else if (customId === 'menu_members') {
       await interaction.update(ButtonManager.createMembersMenu(userId, lang));
     }
-    else if (customId === 'menu_ministries') {
-      await interaction.update(ButtonManager.createMinistriesMenu(userId, lang));
-    }
     else if (customId === 'menu_logs') {
       await interaction.update(ButtonManager.createLogsMenu(userId, lang));
     }
     else if (customId === 'menu_schedule') {
       await interaction.update(ButtonManager.createScheduleMenu(userId, lang));
+    }
+
+    // Ministry Appointments
+    else if (customId === 'appointment_building' || customId === 'appointment_research' || customId === 'appointment_training') {
+      const type = customId.replace('appointment_', '');
+      await showAppointmentModal(interaction, type, lang);
+    }
+    else if (customId === 'appointment_view_all') {
+      await showAllAppointments(interaction, lang);
+    }
+    else if (customId === 'appointment_delete') {
+      await showDeleteAppointmentModal(interaction, lang);
+    }
+
+    // Reminder Edit
+    else if (customId === 'reminder_edit_message') {
+      await showEditReminderMessageModal(interaction, lang);
+    }
+    else if (customId === 'reminder_set_time') {
+      await showSetReminderTimeModal(interaction, lang);
+    }
+
+    // Layout Controls
+    else if (customId === 'layout_move_up') {
+      await showMoveButtonModal(interaction, 'up', lang);
+    }
+    else if (customId === 'layout_move_down') {
+      await showMoveButtonModal(interaction, 'down', lang);
+    }
+    else if (customId === 'layout_swap') {
+      await showSwapButtonsModal(interaction, lang);
+    }
+    else if (customId === 'layout_edit_labels') {
+      await showEditLabelsModal(interaction, lang);
     }
 
     // Back buttons
@@ -1910,5 +1941,222 @@ async function showAllianceRegisterModal(interaction, lang) {
     new ActionRowBuilder().addComponents(descInput)
   );
 
+  await interaction.showModal(modal);
+}
+
+// Ministry Appointment Modal
+async function showAppointmentModal(interaction, type, lang) {
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
+  
+  const ministryNames = {
+    building: lang === 'ar' ? 'البناء' : 'Building',
+    research: lang === 'ar' ? 'البحث' : 'Research',
+    training: lang === 'ar' ? 'التدريب' : 'Training'
+  };
+
+  const modal = new ModalBuilder()
+    .setCustomId(`modal_appointment_${type}`)
+    .setTitle(lang === 'ar' ? `حجز - ${ministryNames[type]}` : `Book - ${ministryNames[type]}`);
+
+  const dayInput = new TextInputBuilder()
+    .setCustomId('appointment_day')
+    .setLabel(lang === 'ar' ? `اليوم (1-31) - ${currentMonth}/${currentYear}` : `Day (1-31) - ${currentMonth}/${currentYear}`)
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('15')
+    .setRequired(true)
+    .setMinLength(1)
+    .setMaxLength(2);
+
+  const timeInput = new TextInputBuilder()
+    .setCustomId('appointment_time')
+    .setLabel(lang === 'ar' ? 'الوقت (00:00 - 23:30)' : 'Time (00:00 - 23:30)')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('14:00')
+    .setRequired(true)
+    .setMinLength(4)
+    .setMaxLength(5);
+
+  const monthInput = new TextInputBuilder()
+    .setCustomId('appointment_month')
+    .setLabel(lang === 'ar' ? `الشهر (فارغ=${currentMonth})` : `Month (empty=${currentMonth})`)
+    .setStyle(TextInputStyle.Short)
+    .setRequired(false)
+    .setMaxLength(2);
+
+  const noteInput = new TextInputBuilder()
+    .setCustomId('appointment_note')
+    .setLabel(lang === 'ar' ? 'ملاحظة' : 'Note')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(false)
+    .setMaxLength(100);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(dayInput),
+    new ActionRowBuilder().addComponents(timeInput),
+    new ActionRowBuilder().addComponents(monthInput),
+    new ActionRowBuilder().addComponents(noteInput)
+  );
+
+  await interaction.showModal(modal);
+}
+
+async function showAllAppointments(interaction, lang) {
+  const appointments = db.getBookings('ministry') || [];
+  let content = lang === 'ar' ? '**📋 جميع المواعيد:**\n\n' : '**📋 All Appointments:**\n\n';
+  
+  if (appointments.length === 0) {
+    content += lang === 'ar' ? '❌ لا توجد مواعيد' : '❌ No appointments';
+  } else {
+    appointments.forEach((apt, i) => {
+      content += `**${i + 1}.** ${apt.ministry || apt.type} | ${apt.date} ${apt.time} | ${apt.userName}\n`;
+    });
+  }
+  await interaction.reply({ content, ephemeral: true });
+}
+
+async function showDeleteAppointmentModal(interaction, lang) {
+  const modal = new ModalBuilder()
+    .setCustomId('modal_appointment_delete')
+    .setTitle(lang === 'ar' ? 'حذف موعد' : 'Delete');
+
+  const idInput = new TextInputBuilder()
+    .setCustomId('appointment_id')
+    .setLabel(lang === 'ar' ? 'رقم الموعد' : 'Number')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
+
+  modal.addComponents(new ActionRowBuilder().addComponents(idInput));
+  await interaction.showModal(modal);
+}
+
+async function showEditReminderMessageModal(interaction, lang) {
+  const modal = new ModalBuilder()
+    .setCustomId('modal_reminder_edit')
+    .setTitle(lang === 'ar' ? 'تعديل تذكير' : 'Edit Reminder');
+
+  const idInput = new TextInputBuilder()
+    .setCustomId('reminder_id')
+    .setLabel(lang === 'ar' ? 'الرقم' : 'Number')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
+
+  const messageInput = new TextInputBuilder()
+    .setCustomId('reminder_message')
+    .setLabel(lang === 'ar' ? 'الرسالة' : 'Message')
+    .setStyle(TextInputStyle.Paragraph)
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(idInput),
+    new ActionRowBuilder().addComponents(messageInput)
+  );
+  await interaction.showModal(modal);
+}
+
+async function showSetReminderTimeModal(interaction, lang) {
+  const modal = new ModalBuilder()
+    .setCustomId('modal_reminder_time')
+    .setTitle(lang === 'ar' ? 'وقت التذكير' : 'Time');
+
+  const idInput = new TextInputBuilder()
+    .setCustomId('reminder_id')
+    .setLabel(lang === 'ar' ? 'الرقم' : 'Number')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
+
+  const timeInput = new TextInputBuilder()
+    .setCustomId('reminder_before')
+    .setLabel(lang === 'ar' ? 'قبل (5m,15m,30m,1h,1d)' : 'Before (5m,15m,30m,1h,1d)')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(idInput),
+    new ActionRowBuilder().addComponents(timeInput)
+  );
+  await interaction.showModal(modal);
+}
+
+async function showMoveButtonModal(interaction, direction, lang) {
+  const modal = new ModalBuilder()
+    .setCustomId(`modal_layout_move_${direction}`)
+    .setTitle(lang === 'ar' ? 'نقل زر' : 'Move');
+
+  const rowInput = new TextInputBuilder()
+    .setCustomId('row_number')
+    .setLabel(lang === 'ar' ? 'الصف (1-4)' : 'Row (1-4)')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
+
+  const buttonInput = new TextInputBuilder()
+    .setCustomId('button_index')
+    .setLabel(lang === 'ar' ? 'الزر (1-3)' : 'Button (1-3)')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(rowInput),
+    new ActionRowBuilder().addComponents(buttonInput)
+  );
+  await interaction.showModal(modal);
+}
+
+async function showSwapButtonsModal(interaction, lang) {
+  const modal = new ModalBuilder()
+    .setCustomId('modal_layout_swap')
+    .setTitle(lang === 'ar' ? 'تبديل' : 'Swap');
+
+  const pos1Input = new TextInputBuilder()
+    .setCustomId('position1')
+    .setLabel(lang === 'ar' ? 'موضع1 (صف,زر)' : 'Pos1 (row,btn)')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('1,2')
+    .setRequired(true);
+
+  const pos2Input = new TextInputBuilder()
+    .setCustomId('position2')
+    .setLabel(lang === 'ar' ? 'موضع2 (صف,زر)' : 'Pos2 (row,btn)')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('2,1')
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(pos1Input),
+    new ActionRowBuilder().addComponents(pos2Input)
+  );
+  await interaction.showModal(modal);
+}
+
+async function showEditLabelsModal(interaction, lang) {
+  const modal = new ModalBuilder()
+    .setCustomId('modal_layout_edit_labels')
+    .setTitle(lang === 'ar' ? 'تعديل نص' : 'Edit Label');
+
+  const buttonInput = new TextInputBuilder()
+    .setCustomId('button_id')
+    .setLabel(lang === 'ar' ? 'معرف الزر' : 'Button ID')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('menu_alliance')
+    .setRequired(true);
+
+  const labelArInput = new TextInputBuilder()
+    .setCustomId('label_ar')
+    .setLabel(lang === 'ar' ? 'النص العربي' : 'Arabic')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
+
+  const labelEnInput = new TextInputBuilder()
+    .setCustomId('label_en')
+    .setLabel(lang === 'ar' ? 'النص الإنجليزي' : 'English')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(buttonInput),
+    new ActionRowBuilder().addComponents(labelArInput),
+    new ActionRowBuilder().addComponents(labelEnInput)
+  );
   await interaction.showModal(modal);
 }

@@ -87,6 +87,32 @@ export async function handleModalSubmit(interaction) {
     else if (customId === 'modal_alliance_register') {
       await processAllianceRegister(interaction, userId, lang);
     }
+    // Ministry Appointment Modals
+    else if (customId.startsWith('modal_appointment_')) {
+      const type = customId.replace('modal_appointment_', '');
+      if (type === 'delete') {
+        await processDeleteAppointment(interaction, userId, lang);
+      } else {
+        await processMinistryAppointment(interaction, type, userId, lang);
+      }
+    }
+    // Reminder Edit/Time Modals
+    else if (customId === 'modal_reminder_edit') {
+      await processEditReminder(interaction, userId, lang);
+    }
+    else if (customId === 'modal_reminder_time') {
+      await processSetReminderTime(interaction, userId, lang);
+    }
+    // Layout Management Modals
+    else if (customId === 'modal_layout_move_up' || customId === 'modal_layout_move_down') {
+      await processMoveButton(interaction, customId.includes('up') ? 'up' : 'down', userId, lang);
+    }
+    else if (customId === 'modal_layout_swap') {
+      await processSwapButtons(interaction, userId, lang);
+    }
+    else if (customId === 'modal_layout_edit_labels') {
+      await processEditLabels(interaction, userId, lang);
+    }
   } catch (error) {
     console.error('Error handling modal submit:', error);
     await interaction.reply({ 
@@ -1082,3 +1108,208 @@ async function processAllianceRegister(interaction, userId, lang) {
   });
 }
 
+
+// Ministry Appointment Processing
+async function processMinistryAppointment(interaction, type, userId, lang) {
+  const day = interaction.fields.getTextInputValue('appointment_day');
+  const time = interaction.fields.getTextInputValue('appointment_time');
+  const month = interaction.fields.getTextInputValue('appointment_month') || (new Date().getMonth() + 1);
+  const note = interaction.fields.getTextInputValue('appointment_note') || '';
+  
+  const ministryNames = {
+    building: lang === 'ar' ? 'البناء' : 'Building',
+    research: lang === 'ar' ? 'البحث' : 'Research',
+    training: lang === 'ar' ? 'التدريب' : 'Training'
+  };
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  
+  const bookings = db.getBookings('ministry') || [];
+  bookings.push({
+    id: Date.now(),
+    ministry: ministryNames[type],
+    type: type,
+    date: date,
+    time: time,
+    note: note,
+    userId: userId,
+    userName: interaction.user.username,
+    createdAt: new Date().toISOString()
+  });
+  
+  db.saveBookings('ministry', bookings);
+  
+  await interaction.reply({
+    content: lang === 'ar' 
+      ? `✅ تم حجز موعد ${ministryNames[type]}\n📅 ${date} الساعة ${time}`
+      : `✅ Booked ${ministryNames[type]}\n📅 ${date} at ${time}`,
+    ephemeral: true
+  });
+}
+
+async function processDeleteAppointment(interaction, userId, lang) {
+  const id = parseInt(interaction.fields.getTextInputValue('appointment_id'));
+  const bookings = db.getBookings('ministry') || [];
+  
+  if (id < 1 || id > bookings.length) {
+    return await interaction.reply({
+      content: lang === 'ar' ? '❌ رقم غير صحيح' : '❌ Invalid number',
+      ephemeral: true
+    });
+  }
+  
+  const removed = bookings.splice(id - 1, 1)[0];
+  db.saveBookings('ministry', bookings);
+  
+  await interaction.reply({
+    content: lang === 'ar' 
+      ? `✅ تم حذف موعد ${removed.ministry}`
+      : `✅ Deleted ${removed.ministry} appointment`,
+    ephemeral: true
+  });
+}
+
+async function processEditReminder(interaction, userId, lang) {
+  const id = parseInt(interaction.fields.getTextInputValue('reminder_id'));
+  const message = interaction.fields.getTextInputValue('reminder_message');
+  
+  const reminders = db.getReminders(userId);
+  if (id < 1 || id > reminders.length) {
+    return await interaction.reply({
+      content: lang === 'ar' ? '❌ رقم غير صحيح' : '❌ Invalid number',
+      ephemeral: true
+    });
+  }
+  
+  reminders[id - 1].message = message;
+  db.saveReminders(userId, reminders);
+  
+  await interaction.reply({
+    content: lang === 'ar' ? '✅ تم تحديث التذكير' : '✅ Reminder updated',
+    ephemeral: true
+  });
+}
+
+async function processSetReminderTime(interaction, userId, lang) {
+  const id = parseInt(interaction.fields.getTextInputValue('reminder_id'));
+  const beforeTime = interaction.fields.getTextInputValue('reminder_before');
+  
+  const validTimes = ['5m', '15m', '30m', '1h', '1d'];
+  if (!validTimes.includes(beforeTime)) {
+    return await interaction.reply({
+      content: lang === 'ar' 
+        ? '❌ وقت غير صالح. استخدم: 5m, 15m, 30m, 1h, 1d'
+        : '❌ Invalid time. Use: 5m, 15m, 30m, 1h, 1d',
+      ephemeral: true
+    });
+  }
+  
+  const reminders = db.getReminders(userId);
+  if (id < 1 || id > reminders.length) {
+    return await interaction.reply({
+      content: lang === 'ar' ? '❌ رقم غير صحيح' : '❌ Invalid number',
+      ephemeral: true
+    });
+  }
+  
+  reminders[id - 1].notifyBefore = beforeTime;
+  db.saveReminders(userId, reminders);
+  
+  await interaction.reply({
+    content: lang === 'ar' ? `✅ تم ضبط التنبيه قبل ${beforeTime}` : `✅ Alert set ${beforeTime} before`,
+    ephemeral: true
+  });
+}
+
+async function processMoveButton(interaction, direction, userId, lang) {
+  const row = parseInt(interaction.fields.getTextInputValue('row_number'));
+  const btn = parseInt(interaction.fields.getTextInputValue('button_index'));
+  
+  let layout = db.getButtonLayout(userId) || getDefaultLayout();
+  
+  if (row < 1 || row > layout.length || btn < 1 || btn > (layout[row-1]?.length || 0)) {
+    return await interaction.reply({
+      content: lang === 'ar' ? '❌ موضع غير صحيح' : '❌ Invalid position',
+      ephemeral: true
+    });
+  }
+  
+  const targetRow = direction === 'up' ? row - 2 : row;
+  if (targetRow < 0 || targetRow >= layout.length) {
+    return await interaction.reply({
+      content: lang === 'ar' ? '❌ لا يمكن النقل' : '❌ Cannot move',
+      ephemeral: true
+    });
+  }
+  
+  const button = layout[row-1].splice(btn-1, 1)[0];
+  layout[targetRow].push(button);
+  
+  db.saveButtonLayout(userId, layout);
+  
+  await interaction.reply({
+    content: lang === 'ar' ? '✅ تم نقل الزر' : '✅ Button moved',
+    ephemeral: true
+  });
+}
+
+async function processSwapButtons(interaction, userId, lang) {
+  const pos1 = interaction.fields.getTextInputValue('position1').split(',');
+  const pos2 = interaction.fields.getTextInputValue('position2').split(',');
+  
+  if (pos1.length !== 2 || pos2.length !== 2) {
+    return await interaction.reply({
+      content: lang === 'ar' ? '❌ صيغة غير صحيحة' : '❌ Invalid format',
+      ephemeral: true
+    });
+  }
+  
+  const [r1, b1] = pos1.map(Number);
+  const [r2, b2] = pos2.map(Number);
+  
+  let layout = db.getButtonLayout(userId) || getDefaultLayout();
+  
+  if (!layout[r1-1]?.[b1-1] || !layout[r2-1]?.[b2-1]) {
+    return await interaction.reply({
+      content: lang === 'ar' ? '❌ موضع غير صحيح' : '❌ Invalid position',
+      ephemeral: true
+    });
+  }
+  
+  const temp = layout[r1-1][b1-1];
+  layout[r1-1][b1-1] = layout[r2-1][b2-1];
+  layout[r2-1][b2-1] = temp;
+  
+  db.saveButtonLayout(userId, layout);
+  
+  await interaction.reply({
+    content: lang === 'ar' ? '✅ تم تبديل الأزرار' : '✅ Buttons swapped',
+    ephemeral: true
+  });
+}
+
+async function processEditLabels(interaction, userId, lang) {
+  const buttonId = interaction.fields.getTextInputValue('button_id');
+  const labelAr = interaction.fields.getTextInputValue('label_ar');
+  const labelEn = interaction.fields.getTextInputValue('label_en');
+  
+  let labels = db.getCustomLabels(userId) || {};
+  labels[buttonId] = { ar: labelAr, en: labelEn };
+  db.saveCustomLabels(userId, labels);
+  
+  await interaction.reply({
+    content: lang === 'ar' ? '✅ تم تحديث النص' : '✅ Label updated',
+    ephemeral: true
+  });
+}
+
+function getDefaultLayout() {
+  return [
+    ['menu_alliance', 'menu_ministry_appointments', 'menu_members'],
+    ['menu_logs', 'menu_schedule', 'menu_reminders'],
+    ['menu_permissions', 'menu_stats', 'menu_settings'],
+    ['menu_help', 'switch_language']
+  ];
+}

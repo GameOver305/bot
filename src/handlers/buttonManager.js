@@ -22,8 +22,8 @@ export class ButtonManager {
           .setLabel(lang === 'ar' ? '🤝 التحالف' : '🤝 Alliance')
           .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
-          .setCustomId('menu_bookings')
-          .setLabel(lang === 'ar' ? '📅 الحجوزات' : '📅 Bookings')
+          .setCustomId('menu_ministry_appointments')
+          .setLabel(lang === 'ar' ? '📅 مواعيد الوزارات' : '📅 Ministry Appointments')
           .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
           .setCustomId('menu_members')
@@ -35,16 +35,16 @@ export class ButtonManager {
     const row2 = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
-          .setCustomId('menu_ministries')
-          .setLabel(lang === 'ar' ? '🏛️ الوزارات' : '🏛️ Ministries')
-          .setStyle(ButtonStyle.Success),
-        new ButtonBuilder()
           .setCustomId('menu_logs')
           .setLabel(lang === 'ar' ? '📜 السجلات' : '📜 Logs')
           .setStyle(ButtonStyle.Success),
         new ButtonBuilder()
           .setCustomId('menu_schedule')
           .setLabel(lang === 'ar' ? '📅 الجدولة' : '📅 Schedule')
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId('menu_reminders')
+          .setLabel(lang === 'ar' ? '🔔 التذكيرات' : '🔔 Reminders')
           .setStyle(ButtonStyle.Success)
       );
 
@@ -56,22 +56,18 @@ export class ButtonManager {
           .setLabel(lang === 'ar' ? '🔐 الصلاحيات' : '🔐 Permissions')
           .setStyle(ButtonStyle.Danger),
         new ButtonBuilder()
-          .setCustomId('menu_reminders')
-          .setLabel(lang === 'ar' ? '🔔 التذكيرات' : '🔔 Reminders')
-          .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
           .setCustomId('menu_stats')
           .setLabel(lang === 'ar' ? '📊 الإحصائيات' : '📊 Stats')
-          .setStyle(ButtonStyle.Secondary)
-      );
-
-    // Row 4: Help & Settings
-    const row4 = new ActionRowBuilder()
-      .addComponents(
+          .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
           .setCustomId('menu_settings')
           .setLabel(lang === 'ar' ? '⚙️ الإعدادات' : '⚙️ Settings')
-          .setStyle(ButtonStyle.Secondary),
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+    // Row 4: Help & Language
+    const row4 = new ActionRowBuilder()
+      .addComponents(
         new ButtonBuilder()
           .setCustomId('menu_help')
           .setLabel(lang === 'ar' ? '❓ المساعدة' : '❓ Help')
@@ -86,33 +82,73 @@ export class ButtonManager {
   }
 
   static createBookingsMenu(lang = 'en') {
+    // This is now redirected to Ministry Appointments
+    return this.createMinistryAppointmentsMenu(lang);
+  }
+
+  // New Ministry Appointments System
+  static createMinistryAppointmentsMenu(lang = 'en') {
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+    const appointments = db.getBookings('ministry') || [];
+
+    let description = lang === 'ar'
+      ? '**📅 نظام مواعيد الوزارات**\n\n' +
+        'يمكنك حجز مواعيد للوزارات المختلفة (بناء، بحث، تدريب)\n' +
+        `📆 الشهر الحالي: ${currentMonth}/${currentYear}\n\n`
+      : '**📅 Ministry Appointments System**\n\n' +
+        'Book appointments for different ministries (building, research, training)\n' +
+        `📆 Current Month: ${currentMonth}/${currentYear}\n\n`;
+
+    if (appointments.length > 0) {
+      description += '**📋 ' + (lang === 'ar' ? 'المواعيد المسجلة:' : 'Registered Appointments:') + '**\n';
+      appointments.slice(0, 10).forEach((apt, index) => {
+        const ministry = apt.ministry || apt.type || 'N/A';
+        const time = apt.time || '00:00';
+        const date = apt.date || 'N/A';
+        const user = apt.userName || 'N/A';
+        description += `${index + 1}. **${ministry}** | ${date} ${time} | ${user}\n`;
+      });
+    } else {
+      description += lang === 'ar' ? '❌ لا توجد مواعيد مسجلة حالياً' : '❌ No appointments registered';
+    }
+
     const embed = new EmbedBuilder()
       .setColor('#00ff00')
-      .setTitle(t(lang, 'bookings.title'))
-      .setDescription(t(lang, 'bookings.description'))
+      .setTitle(lang === 'ar' ? '📅 مواعيد الوزارات' : '📅 Ministry Appointments')
+      .setDescription(description)
       .setTimestamp();
 
     const row1 = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
-          .setCustomId('booking_building')
-          .setLabel(t(lang, 'bookings.building'))
+          .setCustomId('appointment_building')
+          .setLabel(lang === 'ar' ? '🏗️ البناء' : '🏗️ Building')
           .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
-          .setCustomId('booking_research')
-          .setLabel(t(lang, 'bookings.research'))
+          .setCustomId('appointment_research')
+          .setLabel(lang === 'ar' ? '🔬 البحث' : '🔬 Research')
           .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
-          .setCustomId('booking_training')
-          .setLabel(t(lang, 'bookings.training'))
+          .setCustomId('appointment_training')
+          .setLabel(lang === 'ar' ? '⚔️ التدريب' : '⚔️ Training')
           .setStyle(ButtonStyle.Primary)
       );
 
     const row2 = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
+          .setCustomId('appointment_view_all')
+          .setLabel(lang === 'ar' ? '📋 عرض الكل' : '📋 View All')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId('appointment_delete')
+          .setLabel(lang === 'ar' ? '🗑️ حذف موعد' : '🗑️ Delete')
+          .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
           .setCustomId('back_main')
-          .setLabel(t(lang, 'bookings.back'))
+          .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
           .setStyle(ButtonStyle.Secondary)
       );
 
@@ -411,8 +447,12 @@ export class ButtonManager {
       .setColor('#ff6b6b')
       .setTitle(lang === 'ar' ? '🔔 نظام التذكيرات' : '🔔 Reminders System')
       .setDescription(lang === 'ar' 
-        ? 'إدارة جميع تذكيراتك الشخصية'
-        : 'Manage all your personal reminders')
+        ? 'إدارة جميع تذكيراتك الشخصية\n\n' +
+          '⏱️ **أوقات التذكير المتاحة:**\n' +
+          '• قبل 5 دقائق\n• قبل 15 دقيقة\n• قبل 30 دقيقة\n• قبل ساعة\n• قبل يوم'
+        : 'Manage all your personal reminders\n\n' +
+          '⏱️ **Available reminder times:**\n' +
+          '• 5 minutes before\n• 15 minutes before\n• 30 minutes before\n• 1 hour before\n• 1 day before')
       .setTimestamp();
 
     if (reminders.length === 0) {
@@ -422,9 +462,10 @@ export class ButtonManager {
         inline: false
       });
     } else {
-      const remindersList = reminders.map((r, i) => {
+      const remindersList = reminders.slice(0, 5).map((r, i) => {
         const date = new Date(r.time).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-US');
-        return `**${i + 1}.** ${r.message}\n   ⏰ ${date}`;
+        const reminderTime = r.reminderBefore || '1h';
+        return `**${i + 1}.** ${r.message}\n   ⏰ ${date} | ⏱️ ${reminderTime}`;
       }).join('\n\n');
 
       embed.addFields({
@@ -441,13 +482,23 @@ export class ButtonManager {
           .setLabel(lang === 'ar' ? '➕ إضافة تذكير' : '➕ Add Reminder')
           .setStyle(ButtonStyle.Success),
         new ButtonBuilder()
-          .setCustomId('reminder_view')
-          .setLabel(lang === 'ar' ? '📋 عرض الكل' : '📋 View All')
+          .setCustomId('reminder_edit_message')
+          .setLabel(lang === 'ar' ? '✏️ تعديل رسالة' : '✏️ Edit Message')
           .setStyle(ButtonStyle.Primary)
+          .setDisabled(reminders.length === 0),
+        new ButtonBuilder()
+          .setCustomId('reminder_set_time')
+          .setLabel(lang === 'ar' ? '⏱️ وقت التذكير' : '⏱️ Set Time')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(reminders.length === 0)
       );
 
     const row2 = new ActionRowBuilder()
       .addComponents(
+        new ButtonBuilder()
+          .setCustomId('reminder_view')
+          .setLabel(lang === 'ar' ? '📋 عرض الكل' : '📋 View All')
+          .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
           .setCustomId('reminder_delete')
           .setLabel(lang === 'ar' ? '🗑️ حذف تذكير' : '🗑️ Delete Reminder')
@@ -1001,8 +1052,8 @@ export class ButtonManager {
     });
 
     description += '\n' + (lang === 'ar' 
-      ? 'ℹ️ **قريباً:** سيتم إضافة نظام السحب والإفلات لتعديل الترتيب'
-      : 'ℹ️ **Coming Soon:** Drag & drop system for reordering');
+      ? '💡 **استخدم الأزرار أدناه لتعديل الترتيب:**'
+      : '💡 **Use buttons below to modify layout:**');
 
     const embed = new EmbedBuilder()
       .setColor('#9900ff')
@@ -1012,6 +1063,30 @@ export class ButtonManager {
 
     const row1 = new ActionRowBuilder()
       .addComponents(
+        new ButtonBuilder()
+          .setCustomId('layout_move_up')
+          .setLabel(lang === 'ar' ? '⬆️ نقل للأعلى' : '⬆️ Move Up')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!isOwner),
+        new ButtonBuilder()
+          .setCustomId('layout_move_down')
+          .setLabel(lang === 'ar' ? '⬇️ نقل للأسفل' : '⬇️ Move Down')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!isOwner),
+        new ButtonBuilder()
+          .setCustomId('layout_swap')
+          .setLabel(lang === 'ar' ? '🔄 تبديل موضع' : '🔄 Swap')
+          .setStyle(ButtonStyle.Success)
+          .setDisabled(!isOwner)
+      );
+
+    const row2 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('layout_edit_labels')
+          .setLabel(lang === 'ar' ? '✏️ تعديل النصوص' : '✏️ Edit Labels')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(!isOwner),
         new ButtonBuilder()
           .setCustomId('layout_reset')
           .setLabel(lang === 'ar' ? '🔄 إعادة تعيين' : '🔄 Reset')
@@ -1023,7 +1098,7 @@ export class ButtonManager {
           .setStyle(ButtonStyle.Primary)
       );
 
-    const row2 = new ActionRowBuilder()
+    const row3 = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
           .setCustomId('back_owner_admin')
@@ -1031,6 +1106,6 @@ export class ButtonManager {
           .setStyle(ButtonStyle.Secondary)
       );
 
-    return { embeds: [embed], components: [row1, row2] };
+    return { embeds: [embed], components: [row1, row2, row3] };
   }
 }
