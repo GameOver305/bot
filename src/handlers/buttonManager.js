@@ -211,24 +211,27 @@ export class ButtonManager {
 
   static createAllianceMenu(lang = 'en') {
     const alliance = db.getAlliance();
+    const hasAlliance = alliance.name && alliance.name !== '';
     
     const embed = new EmbedBuilder()
       .setColor('#ff00ff')
-      .setTitle(t(lang, 'alliance.title'))
-      .setDescription(t(lang, 'alliance.allianceInfo', {
-        name: alliance.name || t(lang, 'alliance.notSet'),
-        tag: alliance.tag || t(lang, 'alliance.notSet'),
-        leader: alliance.leader ? `<@${alliance.leader}>` : t(lang, 'alliance.notSet'),
-        count: alliance.members.length,
-        description: alliance.description || t(lang, 'alliance.notSet')
-      }))
-      .setFooter({ 
-        text: lang === 'ar' 
-          ? 'استخدم الأزرار أدناه لإدارة التحالف' 
-          : 'Use the buttons below to manage the alliance' 
-      })
+      .setTitle(lang === 'ar' ? '🤝 نظام التحالف' : '🤝 Alliance System')
+      .setDescription(lang === 'ar'
+        ? `**معلومات التحالف:**\n\n` +
+          `📛 **الاسم:** ${alliance.name || 'غير مسجل'}\n` +
+          `🏷️ **التاغ:** ${alliance.tag || 'غير محدد'}\n` +
+          `👑 **القائد:** ${alliance.leader ? `<@${alliance.leader}>` : 'غير محدد'}\n` +
+          `👥 **الأعضاء:** ${alliance.members.length}\n` +
+          `📝 **الوصف:** ${alliance.description || 'لا يوجد'}`
+        : `**Alliance Information:**\n\n` +
+          `📛 **Name:** ${alliance.name || 'Not registered'}\n` +
+          `🏷️ **Tag:** ${alliance.tag || 'Not set'}\n` +
+          `👑 **Leader:** ${alliance.leader ? `<@${alliance.leader}>` : 'Not set'}\n` +
+          `👥 **Members:** ${alliance.members.length}\n` +
+          `📝 **Description:** ${alliance.description || 'None'}`)
       .setTimestamp();
 
+    // Row 1: View Info
     const row1 = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
@@ -237,31 +240,62 @@ export class ButtonManager {
           .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
           .setCustomId('alliance_members')
-          .setLabel(t(lang, 'alliance.members'))
+          .setLabel(lang === 'ar' ? '👥 الأعضاء' : '👥 Members')
           .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
           .setCustomId('alliance_ranks')
-          .setLabel(lang === 'ar' ? '⭐ توزيع الرتب' : '⭐ Rank Distribution')
+          .setLabel(lang === 'ar' ? '⭐ الرتب' : '⭐ Ranks')
           .setStyle(ButtonStyle.Secondary)
       );
     
+    // Row 2: Member Management (was in alliance_commands)
     const row2 = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
-          .setCustomId('alliance_manage_menu')
-          .setLabel(lang === 'ar' ? '⚙️ إدارة التحالف' : '⚙️ Manage Alliance')
-          .setStyle(ButtonStyle.Success),
+          .setCustomId('alliance_add_member')
+          .setLabel(lang === 'ar' ? '➕ إضافة عضو' : '➕ Add Member')
+          .setStyle(ButtonStyle.Success)
+          .setDisabled(!hasAlliance),
         new ButtonBuilder()
-          .setCustomId('alliance_commands')
-          .setLabel(lang === 'ar' ? '📜 قائمة الأوامر' : '📜 Commands List')
-          .setStyle(ButtonStyle.Secondary),
+          .setCustomId('alliance_remove_member')
+          .setLabel(lang === 'ar' ? '➖ إزالة عضو' : '➖ Remove Member')
+          .setStyle(ButtonStyle.Danger)
+          .setDisabled(!hasAlliance),
         new ButtonBuilder()
-          .setCustomId('back_main')
-          .setLabel(t(lang, 'alliance.back'))
-          .setStyle(ButtonStyle.Secondary)
+          .setCustomId('alliance_change_rank')
+          .setLabel(lang === 'ar' ? '⭐ تغيير رتبة' : '⭐ Change Rank')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!hasAlliance)
       );
 
-    return { embeds: [embed], components: [row1, row2] };
+    // Row 3: Alliance Settings
+    const row3 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('alliance_register')
+          .setLabel(lang === 'ar' ? '📝 تسجيل/تعديل' : '📝 Register/Edit')
+          .setStyle(hasAlliance ? ButtonStyle.Secondary : ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId('alliance_set_leader')
+          .setLabel(lang === 'ar' ? '👑 تعيين قائد' : '👑 Set Leader')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!hasAlliance)
+      );
+
+    // Row 4: Navigation
+    const row4 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('back_main')
+          .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId('close_menu')
+          .setLabel(lang === 'ar' ? '❌ إغلاق' : '❌ Close')
+          .setStyle(ButtonStyle.Danger)
+      );
+
+    return { embeds: [embed], components: [row1, row2, row3, row4] };
   }
 
   static createSettingsMenu(userId, lang = 'en') {
@@ -342,8 +376,9 @@ export class ButtonManager {
     return { embeds: [embed], components };
   }
 
-  static createPermissionsMenu(lang = 'en') {
+  static createPermissionsMenu(userId, lang = 'en') {
     const perms = db.getPermissions();
+    const isOwner = db.isOwner(userId);
     
     let adminList = lang === 'ar' ? 'لا يوجد مشرفين' : 'No admins';
     if (perms.admins.length > 0) {
@@ -352,13 +387,21 @@ export class ButtonManager {
 
     const embed = new EmbedBuilder()
       .setColor('#ff0000')
-      .setTitle(lang === 'ar' ? '👮 إدارة الأدمن والمالك' : '👮 Admin & Owner Management')
+      .setTitle(lang === 'ar' ? '👮 إدارة الأدمن والمالك' : '👮 Admin & Owner Panel')
       .setDescription(lang === 'ar' 
-        ? 'إدارة صلاحيات المشرفين والمالك'
-        : 'Manage admin and owner permissions')
+        ? '**لوحة تحكم متكاملة للإدارة**\n\n' +
+          '• إضافة/إزالة المشرفين\n' +
+          '• تغيير المالك\n' +
+          '• إدارة السيرفرات\n' +
+          '• تخصيص الأزرار'
+        : '**Complete Admin Control Panel**\n\n' +
+          '• Add/Remove admins\n' +
+          '• Change owner\n' +
+          '• Manage servers\n' +
+          '• Customize buttons')
       .addFields(
-        { name: lang === 'ar' ? '👑 المالك' : '👑 Owner', value: perms.owner ? `<@${perms.owner}>` : (lang === 'ar' ? 'غير محدد' : 'Not set'), inline: false },
-        { name: lang === 'ar' ? '👮 المشرفين' : '👮 Admins', value: adminList, inline: false }
+        { name: lang === 'ar' ? '👑 المالك' : '👑 Owner', value: perms.owner ? `<@${perms.owner}>` : (lang === 'ar' ? 'غير محدد' : 'Not set'), inline: true },
+        { name: lang === 'ar' ? '👮 المشرفين' : '👮 Admins', value: `${perms.admins.length}`, inline: true }
       )
       .setTimestamp();
 
@@ -381,9 +424,23 @@ export class ButtonManager {
     const row2 = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
+          .setCustomId('owner_guilds')
+          .setLabel(lang === 'ar' ? '🌐 السيرفرات' : '🌐 Servers')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!isOwner),
+        new ButtonBuilder()
+          .setCustomId('owner_buttons')
+          .setLabel(lang === 'ar' ? '🎨 الأزرار' : '🎨 Buttons')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!isOwner),
+        new ButtonBuilder()
           .setCustomId('perm_manage_admins')
-          .setLabel(lang === 'ar' ? '📋 قائمة المشرفين' : '📋 Admin List')
-          .setStyle(ButtonStyle.Secondary),
+          .setLabel(lang === 'ar' ? '📋 قائمة الأدمن' : '📋 Admin List')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+    const row3 = new ActionRowBuilder()
+      .addComponents(
         new ButtonBuilder()
           .setCustomId('back_main')
           .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
@@ -394,7 +451,7 @@ export class ButtonManager {
           .setStyle(ButtonStyle.Danger)
       );
 
-    return { embeds: [embed], components: [row1, row2] };
+    return { embeds: [embed], components: [row1, row2, row3] };
   }
 
   static createStatsMenu(lang = 'en') {
@@ -1066,57 +1123,55 @@ export class ButtonManager {
     const layout = db.getButtonLayout();
 
     let description = lang === 'ar'
-      ? '**تخصيص ترتيب الأزرار في القائمة الرئيسية**\n\n'
-      : '**Customize button layout in main menu**\n\n';
+      ? '**🎨 تخصيص الأزرار**\n\n'
+      : '**🎨 Button Customization**\n\n';
 
-    description += '**📋 ' + (lang === 'ar' ? 'الترتيب الحالي:' : 'Current Layout:') + '**\n\n';
+    description += '**' + (lang === 'ar' ? 'الترتيب الحالي:' : 'Current Layout:') + '**\n';
     
     const buttonLabels = {
-      menu_alliance: lang === 'ar' ? '🤝 التحالف' : '🤝 Alliance',
-      menu_bookings: lang === 'ar' ? '📅 الحجوزات' : '📅 Bookings',
-      menu_members: lang === 'ar' ? '👥 الأعضاء' : '👥 Members',
-      menu_ministries: lang === 'ar' ? '🏛️ الوزارات' : '🏛️ Ministries',
-      menu_logs: lang === 'ar' ? '📜 السجلات' : '📜 Logs',
-      menu_schedule: lang === 'ar' ? '📅 الجدولة' : '📅 Schedule',
-      menu_permissions: lang === 'ar' ? '🔐 الصلاحيات' : '🔐 Permissions',
-      menu_reminders: lang === 'ar' ? '🔔 التذكيرات' : '🔔 Reminders',
-      menu_stats: lang === 'ar' ? '📊 الإحصائيات' : '📊 Stats',
-      menu_settings: lang === 'ar' ? '⚙️ الإعدادات' : '⚙️ Settings',
-      menu_help: lang === 'ar' ? '❓ المساعدة' : '❓ Help',
-      lang_switch: lang === 'ar' ? '🌐 اللغة' : '🌐 Language'
+      menu_alliance: '1️⃣ ' + (lang === 'ar' ? 'التحالف' : 'Alliance'),
+      menu_ministry_appointments: '2️⃣ ' + (lang === 'ar' ? 'المواعيد' : 'Appointments'),
+      menu_bookings: '2️⃣ ' + (lang === 'ar' ? 'الحجوزات' : 'Bookings'),
+      menu_members: '3️⃣ ' + (lang === 'ar' ? 'الأعضاء' : 'Members'),
+      menu_logs: '4️⃣ ' + (lang === 'ar' ? 'السجلات' : 'Logs'),
+      menu_schedule: '5️⃣ ' + (lang === 'ar' ? 'الجدولة' : 'Schedule'),
+      menu_reminders: '6️⃣ ' + (lang === 'ar' ? 'التذكيرات' : 'Reminders'),
+      menu_permissions: '7️⃣ ' + (lang === 'ar' ? 'الأدمن' : 'Admin'),
+      menu_stats: '8️⃣ ' + (lang === 'ar' ? 'الإحصائيات' : 'Stats'),
+      menu_settings: '9️⃣ ' + (lang === 'ar' ? 'الإعدادات' : 'Settings'),
+      menu_help: '🔟 ' + (lang === 'ar' ? 'المساعدة' : 'Help'),
+      lang_switch: '1️⃣1️⃣ ' + (lang === 'ar' ? 'اللغة' : 'Language')
     };
 
     layout.rows.forEach((row, rowIndex) => {
-      description += `**${lang === 'ar' ? 'الصف' : 'Row'} ${rowIndex + 1}:** `;
-      description += row.map(btn => buttonLabels[btn] || btn).join(' | ');
-      description += '\n';
+      description += `\n**${lang === 'ar' ? 'صف' : 'Row'} ${rowIndex + 1}:** `;
+      description += row.map(btn => buttonLabels[btn] || btn).join(' ');
     });
 
-    description += '\n' + (lang === 'ar' 
-      ? '💡 **استخدم الأزرار أدناه لتعديل الترتيب:**'
-      : '💡 **Use buttons below to modify layout:**');
+    description += '\n\n' + (lang === 'ar' 
+      ? '**📖 التعليمات:**\n' +
+        '• **تبديل:** اكتب موضعين (صف,زر) مثل: `1,2` و `2,1`\n' +
+        '• **تعديل نص:** اكتب رقم الزر (1-11) ثم النص الجديد'
+      : '**📖 Instructions:**\n' +
+        '• **Swap:** Enter two positions (row,btn) like: `1,2` and `2,1`\n' +
+        '• **Edit Label:** Enter button number (1-11) then new text');
 
     const embed = new EmbedBuilder()
       .setColor('#9900ff')
-      .setTitle(lang === 'ar' ? '🔧 تخصيص الأزرار' : '🔧 Button Customization')
+      .setTitle(lang === 'ar' ? '🎨 تخصيص الأزرار' : '🎨 Button Customization')
       .setDescription(description)
       .setTimestamp();
 
     const row1 = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
-          .setCustomId('layout_move_up')
-          .setLabel(lang === 'ar' ? '⬆️ نقل للأعلى' : '⬆️ Move Up')
-          .setStyle(ButtonStyle.Primary)
-          .setDisabled(!isOwner),
-        new ButtonBuilder()
-          .setCustomId('layout_move_down')
-          .setLabel(lang === 'ar' ? '⬇️ نقل للأسفل' : '⬇️ Move Down')
-          .setStyle(ButtonStyle.Primary)
-          .setDisabled(!isOwner),
-        new ButtonBuilder()
           .setCustomId('layout_swap')
-          .setLabel(lang === 'ar' ? '🔄 تبديل موضع' : '🔄 Swap')
+          .setLabel(lang === 'ar' ? '🔄 تبديل مواضع' : '🔄 Swap Positions')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!isOwner),
+        new ButtonBuilder()
+          .setCustomId('layout_edit_labels')
+          .setLabel(lang === 'ar' ? '✏️ تعديل النصوص' : '✏️ Edit Labels')
           .setStyle(ButtonStyle.Success)
           .setDisabled(!isOwner)
       );
@@ -1124,27 +1179,26 @@ export class ButtonManager {
     const row2 = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
-          .setCustomId('layout_edit_labels')
-          .setLabel(lang === 'ar' ? '✏️ تعديل النصوص' : '✏️ Edit Labels')
-          .setStyle(ButtonStyle.Secondary)
-          .setDisabled(!isOwner),
-        new ButtonBuilder()
           .setCustomId('layout_reset')
-          .setLabel(lang === 'ar' ? '🔄 إعادة تعيين' : '🔄 Reset')
+          .setLabel(lang === 'ar' ? '🔄 إعادة للافتراضي' : '🔄 Reset to Default')
           .setStyle(ButtonStyle.Danger)
           .setDisabled(!isOwner),
         new ButtonBuilder()
           .setCustomId('layout_preview')
           .setLabel(lang === 'ar' ? '👁️ معاينة' : '👁️ Preview')
-          .setStyle(ButtonStyle.Primary)
+          .setStyle(ButtonStyle.Secondary)
       );
 
     const row3 = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
-          .setCustomId('back_owner_admin')
+          .setCustomId('back_permissions')
           .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
-          .setStyle(ButtonStyle.Secondary)
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId('close_menu')
+          .setLabel(lang === 'ar' ? '❌ إغلاق' : '❌ Close')
+          .setStyle(ButtonStyle.Danger)
       );
 
     return { embeds: [embed], components: [row1, row2, row3] };

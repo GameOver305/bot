@@ -36,7 +36,7 @@ export async function handleButtonInteraction(interaction) {
         await interaction.reply({ content: t(lang, 'permissions.ownerOnly'), ephemeral: true });
         return;
       }
-      await interaction.update(ButtonManager.createPermissionsMenu(lang));
+      await interaction.update(ButtonManager.createPermissionsMenu(userId, lang));
     }
     else if (customId === 'menu_help') {
       await interaction.update(ButtonManager.createHelpMenu(lang));
@@ -132,6 +132,9 @@ export async function handleButtonInteraction(interaction) {
     // Back buttons
     else if (customId === 'back_main') {
       await interaction.update(ButtonManager.createMainMenu(lang));
+    }
+    else if (customId === 'back_permissions') {
+      await interaction.update(ButtonManager.createPermissionsMenu(userId, lang));
     }
     else if (customId === 'back_bookings') {
       await interaction.update(ButtonManager.createBookingsMenu(lang));
@@ -2173,40 +2176,13 @@ async function showSwapButtonsModal(interaction, lang) {
 }
 
 async function showEditLabelsModal(interaction, lang) {
-  // Show button list with numbers first
-  const buttonList = lang === 'ar' 
-    ? '**🎯 الأزرار:**\n' +
-      '1. التحالف\n' +
-      '2. مواعيد الوزارات\n' +
-      '3. الأعضاء\n' +
-      '4. السجلات\n' +
-      '5. الجدولة\n' +
-      '6. التذكيرات\n' +
-      '7. الأدمن\n' +
-      '8. الإحصائيات\n' +
-      '9. الإعدادات\n' +
-      '10. المساعدة\n' +
-      '11. تغيير اللغة'
-    : '**🎯 Buttons:**\n' +
-      '1. Alliance\n' +
-      '2. Ministry Appointments\n' +
-      '3. Members\n' +
-      '4. Logs\n' +
-      '5. Schedule\n' +
-      '6. Reminders\n' +
-      '7. Admin\n' +
-      '8. Stats\n' +
-      '9. Settings\n' +
-      '10. Help\n' +
-      '11. Language Switch';
-
   const modal = new ModalBuilder()
     .setCustomId('modal_layout_edit_labels')
-    .setTitle(lang === 'ar' ? 'تعديل نص' : 'Edit Label');
+    .setTitle(lang === 'ar' ? 'تعديل نص زر' : 'Edit Button Label');
 
   const buttonInput = new TextInputBuilder()
     .setCustomId('button_id')
-    .setLabel(lang === 'ar' ? 'رقم الزر (1-11)' : 'Button Number (1-11)')
+    .setLabel(lang === 'ar' ? 'رقم الزر: 1=تحالف, 2=مواعيد, 3=أعضاء...' : 'Button: 1=Alliance, 2=Appt, 3=Members...')
     .setStyle(TextInputStyle.Short)
     .setPlaceholder('1')
     .setRequired(true)
@@ -2215,14 +2191,16 @@ async function showEditLabelsModal(interaction, lang) {
 
   const labelArInput = new TextInputBuilder()
     .setCustomId('label_ar')
-    .setLabel(lang === 'ar' ? 'النص العربي' : 'Arabic')
+    .setLabel(lang === 'ar' ? 'النص العربي الجديد' : 'New Arabic Text')
     .setStyle(TextInputStyle.Short)
+    .setPlaceholder(lang === 'ar' ? '🤝 التحالف' : '🤝 التحالف')
     .setRequired(true);
 
   const labelEnInput = new TextInputBuilder()
     .setCustomId('label_en')
-    .setLabel(lang === 'ar' ? 'النص الإنجليزي' : 'English')
+    .setLabel(lang === 'ar' ? 'النص الإنجليزي الجديد' : 'New English Text')
     .setStyle(TextInputStyle.Short)
+    .setPlaceholder('🤝 Alliance')
     .setRequired(true);
 
   modal.addComponents(
@@ -2231,15 +2209,7 @@ async function showEditLabelsModal(interaction, lang) {
     new ActionRowBuilder().addComponents(labelEnInput)
   );
   
-  // Show button list hint
-  await interaction.reply({ content: buttonList, ephemeral: true });
-  
-  // Wait small amount then show modal
-  setTimeout(async () => {
-    try {
-      await interaction.followUp({ content: lang === 'ar' ? 'جاري فتح النموذج...' : 'Opening modal...', ephemeral: true });
-    } catch (e) {}
-  }, 100);
+  await interaction.showModal(modal);
 }
 
 // About menu
