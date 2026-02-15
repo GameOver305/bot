@@ -414,7 +414,12 @@ export class ButtonManager {
         new ButtonBuilder()
           .setCustomId('perm_remove_admin')
           .setLabel(lang === 'ar' ? '➖ إزالة أدمن' : '➖ Remove Admin')
-          .setStyle(ButtonStyle.Danger)
+          .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
+          .setCustomId('owner_default_lang')
+          .setLabel(lang === 'ar' ? '🌍 لغة البوت' : '🌍 Bot Language')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!isOwner)
       );
 
     const row2 = new ActionRowBuilder()
@@ -1251,4 +1256,256 @@ export class ButtonManager {
 
     return { embeds: [embed], components: [selectMenu, arrowRow, actionsRow, backRow] };
   }
+
+  // Enhanced Button Swap Menu with two select menus
+  static createButtonSwapMenu(userId, lang = 'en', selectedFirst = null) {
+    const isOwner = db.isOwner(userId);
+    const layout = db.getButtonLayout();
+    const { StringSelectMenuBuilder } = require('discord.js');
+
+    const buttonNames = {
+      menu_alliance: { ar: '🤝 التحالف', en: '🤝 Alliance' },
+      menu_ministry_appointments: { ar: '📅 المواعيد', en: '📅 Appointments' },
+      menu_bookings: { ar: '📅 الحجوزات', en: '📅 Bookings' },
+      menu_members: { ar: '👥 الأعضاء', en: '👥 Members' },
+      menu_logs: { ar: '📜 السجلات', en: '📜 Logs' },
+      menu_schedule: { ar: '📅 الجدولة', en: '📅 Schedule' },
+      menu_reminders: { ar: '🔔 التذكيرات', en: '🔔 Reminders' },
+      menu_permissions: { ar: '👮 الأدمن', en: '👮 Admin' },
+      menu_stats: { ar: '📊 الإحصائيات', en: '📊 Stats' },
+      menu_settings: { ar: '⚙️ الإعدادات', en: '⚙️ Settings' },
+      menu_help: { ar: '❓ المساعدة', en: '❓ Help' },
+      lang_switch: { ar: '🌐 اللغة', en: '🌐 Language' },
+      menu_ministries: { ar: '🏛️ الوزارات', en: '🏛️ Ministries' }
+    };
+
+    let description = lang === 'ar'
+      ? '**🔄 تبديل مواضع الأزرار**\n\n'
+      : '**🔄 Swap Button Positions**\n\n';
+
+    if (selectedFirst) {
+      const [r, c] = selectedFirst.split(',').map(Number);
+      const btnId = layout.rows[r]?.[c];
+      const btnName = buttonNames[btnId] ? buttonNames[btnId][lang] : btnId;
+      description += lang === 'ar'
+        ? `✅ **الزر الأول:** ${btnName}\n\n👇 **الآن اختر الزر الثاني للتبديل معه:**`
+        : `✅ **First button:** ${btnName}\n\n👇 **Now select the second button to swap with:**`;
+    } else {
+      description += lang === 'ar'
+        ? '👆 **اختر الزر الأول للتبديل:**'
+        : '👆 **Select the first button to swap:**';
+    }
+
+    const embed = new EmbedBuilder()
+      .setColor('#00ff00')
+      .setTitle(lang === 'ar' ? '🔄 تبديل الأزرار' : '🔄 Swap Buttons')
+      .setDescription(description)
+      .setTimestamp();
+
+    // Create select options
+    const selectOptions = [];
+    let idx = 0;
+    layout.rows.forEach((row, rowIndex) => {
+      row.forEach((btn, colIndex) => {
+        idx++;
+        const name = buttonNames[btn] ? buttonNames[btn][lang] : btn;
+        const pos = `${rowIndex},${colIndex}`;
+        if (pos !== selectedFirst) {
+          selectOptions.push({
+            label: `${idx}. ${name.replace(/[^\w\s\u0600-\u06FF]/g, '')}`,
+            description: `${lang === 'ar' ? 'صف' : 'Row'} ${rowIndex + 1}`,
+            value: pos
+          });
+        }
+      });
+    });
+
+    const components = [];
+
+    if (selectedFirst) {
+      // Show second select menu
+      const selectMenu2 = new ActionRowBuilder()
+        .addComponents(
+          new StringSelectMenuBuilder()
+            .setCustomId('swap_select_second')
+            .setPlaceholder(lang === 'ar' ? '🎯 اختر الزر الثاني...' : '🎯 Select second button...')
+            .addOptions(selectOptions.slice(0, 25))
+        );
+      components.push(selectMenu2);
+    } else {
+      // Show first select menu
+      const allOptions = [];
+      idx = 0;
+      layout.rows.forEach((row, rowIndex) => {
+        row.forEach((btn, colIndex) => {
+          idx++;
+          const name = buttonNames[btn] ? buttonNames[btn][lang] : btn;
+          allOptions.push({
+            label: `${idx}. ${name.replace(/[^\w\s\u0600-\u06FF]/g, '')}`,
+            description: `${lang === 'ar' ? 'صف' : 'Row'} ${rowIndex + 1}`,
+            value: `${rowIndex},${colIndex}`
+          });
+        });
+      });
+
+      const selectMenu1 = new ActionRowBuilder()
+        .addComponents(
+          new StringSelectMenuBuilder()
+            .setCustomId('swap_select_first')
+            .setPlaceholder(lang === 'ar' ? '📌 اختر الزر الأول...' : '📌 Select first button...')
+            .addOptions(allOptions.slice(0, 25))
+        );
+      components.push(selectMenu1);
+    }
+
+    const backRow = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('owner_buttons')
+          .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId('close_menu')
+          .setLabel(lang === 'ar' ? '❌ إغلاق' : '❌ Close')
+          .setStyle(ButtonStyle.Danger)
+      );
+    components.push(backRow);
+
+    return { embeds: [embed], components };
+  }
+
+  // Admin Selection Menu with User Select
+  static createAdminSelectMenu(userId, lang = 'en', action = 'add') {
+    const { UserSelectMenuBuilder } = require('discord.js');
+    const perms = db.getPermissions();
+    
+    const embed = new EmbedBuilder()
+      .setColor(action === 'add' ? '#00ff00' : '#ff0000')
+      .setTitle(lang === 'ar' 
+        ? (action === 'add' ? '➕ إضافة مشرف' : '➖ إزالة مشرف')
+        : (action === 'add' ? '➕ Add Admin' : '➖ Remove Admin'))
+      .setDescription(lang === 'ar'
+        ? (action === 'add' 
+          ? '👇 **اختر العضو الذي تريد منحه صلاحية المشرف:**'
+          : '👇 **اختر المشرف الذي تريد إزالته:**')
+        : (action === 'add'
+          ? '👇 **Select the member to grant admin permissions:**'
+          : '👇 **Select the admin to remove:**'))
+      .setTimestamp();
+
+    if (action === 'remove' && perms.admins.length > 0) {
+      embed.addFields({
+        name: lang === 'ar' ? '👮 المشرفين الحاليين' : '👮 Current Admins',
+        value: perms.admins.map(id => `<@${id}>`).join('\n') || (lang === 'ar' ? 'لا يوجد' : 'None')
+      });
+    }
+
+    const userSelect = new ActionRowBuilder()
+      .addComponents(
+        new UserSelectMenuBuilder()
+          .setCustomId(action === 'add' ? 'admin_user_add' : 'admin_user_remove')
+          .setPlaceholder(lang === 'ar' ? '👤 اختر عضواً...' : '👤 Select a member...')
+          .setMinValues(1)
+          .setMaxValues(1)
+      );
+
+    const backRow = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('menu_permissions')
+          .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId('close_menu')
+          .setLabel(lang === 'ar' ? '❌ إغلاق' : '❌ Close')
+          .setStyle(ButtonStyle.Danger)
+      );
+
+    return { embeds: [embed], components: [userSelect, backRow] };
+  }
+
+  // Log Channel Selection Menu
+  static createLogChannelMenu(userId, lang = 'en') {
+    const { ChannelSelectMenuBuilder, ChannelType } = require('discord.js');
+    
+    const embed = new EmbedBuilder()
+      .setColor('#0099ff')
+      .setTitle(lang === 'ar' ? '📜 تعيين قناة السجلات' : '📜 Set Log Channel')
+      .setDescription(lang === 'ar'
+        ? '👇 **اختر القناة التي تريد إرسال السجلات إليها:**\n\n' +
+          '💡 سيتم إرسال جميع سجلات التحالف والأنشطة إلى هذه القناة.'
+        : '👇 **Select the channel to send logs to:**\n\n' +
+          '💡 All alliance and activity logs will be sent to this channel.')
+      .setTimestamp();
+
+    const channelSelect = new ActionRowBuilder()
+      .addComponents(
+        new ChannelSelectMenuBuilder()
+          .setCustomId('log_channel_select')
+          .setPlaceholder(lang === 'ar' ? '📺 اختر قناة...' : '📺 Select a channel...')
+          .addChannelTypes(ChannelType.GuildText)
+      );
+
+    const backRow = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('menu_logs')
+          .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId('remove_log_channel')
+          .setLabel(lang === 'ar' ? '🗑️ إزالة القناة' : '🗑️ Remove Channel')
+          .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
+          .setCustomId('close_menu')
+          .setLabel(lang === 'ar' ? '❌ إغلاق' : '❌ Close')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+    return { embeds: [embed], components: [channelSelect, backRow] };
+  }
+
+  // Default Language Menu for Owner
+  static createDefaultLanguageMenu(userId, lang = 'en') {
+    const currentDefault = db.getDefaultLanguage();
+    
+    const embed = new EmbedBuilder()
+      .setColor('#9900ff')
+      .setTitle(lang === 'ar' ? '🌍 لغة البوت الافتراضية' : '🌍 Default Bot Language')
+      .setDescription(lang === 'ar'
+        ? `**اللغة الافتراضية الحالية:** ${currentDefault === 'ar' ? '🇸🇦 العربية' : '🇺🇸 English'}\n\n` +
+          '💡 هذه اللغة ستظهر للمستخدمين الجدد.\n' +
+          'المستخدمون يمكنهم تغيير لغتهم الشخصية.'
+        : `**Current default language:** ${currentDefault === 'ar' ? '🇸🇦 Arabic' : '🇺🇸 English'}\n\n` +
+          '💡 This language will be shown to new users.\n' +
+          'Users can change their personal language.')
+      .setTimestamp();
+
+    const row1 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('set_default_lang_ar')
+          .setLabel('🇸🇦 العربية')
+          .setStyle(currentDefault === 'ar' ? ButtonStyle.Success : ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId('set_default_lang_en')
+          .setLabel('🇺🇸 English')
+          .setStyle(currentDefault === 'en' ? ButtonStyle.Success : ButtonStyle.Secondary)
+      );
+
+    const backRow = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('menu_permissions')
+          .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId('close_menu')
+          .setLabel(lang === 'ar' ? '❌ إغلاق' : '❌ Close')
+          .setStyle(ButtonStyle.Danger)
+      );
+
+    return { embeds: [embed], components: [row1, backRow] };
+  }
 }
+

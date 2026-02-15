@@ -114,7 +114,11 @@ export async function handleButtonInteraction(interaction) {
       await moveButtonDirection(interaction, selected, 'right', userId, lang);
     }
     else if (customId === 'layout_swap') {
-      await showSwapButtonsModal(interaction, lang);
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ ليس لديك صلاحية' : '❌ No permission', ephemeral: true });
+        return;
+      }
+      await interaction.update(ButtonManager.createButtonSwapMenu(userId, lang));
     }
     else if (customId === 'layout_edit_labels') {
       await showEditLabelsModal(interaction, lang);
@@ -136,22 +140,57 @@ export async function handleButtonInteraction(interaction) {
       await checkBotUpdate(interaction, lang);
     }
 
-    // Admin permission buttons
+    // Admin permission buttons - use select menu
     else if (customId === 'perm_add_admin') {
       if (!db.isOwner(userId)) {
         await interaction.reply({ content: lang === 'ar' ? '❌ المالك فقط' : '❌ Owner only', ephemeral: true });
         return;
       }
-      await showAddAdminModal(interaction, lang);
+      await interaction.update(ButtonManager.createAdminSelectMenu(userId, lang, 'add'));
     }
     else if (customId === 'perm_remove_admin') {
       if (!db.isOwner(userId)) {
         await interaction.reply({ content: lang === 'ar' ? '❌ المالك فقط' : '❌ Owner only', ephemeral: true });
         return;
       }
-      await showRemoveAdminModal(interaction, lang);
+      await interaction.update(ButtonManager.createAdminSelectMenu(userId, lang, 'remove'));
     }
 
+    // Owner default language
+    else if (customId === 'owner_default_lang') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ المالك فقط' : '❌ Owner only', ephemeral: true });
+        return;
+      }
+      await interaction.update(ButtonManager.createDefaultLanguageMenu(userId, lang));
+    }
+    else if (customId === 'set_default_lang_ar') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ المالك فقط' : '❌ Owner only', ephemeral: true });
+        return;
+      }
+      db.setDefaultLanguage('ar');
+      await interaction.update(ButtonManager.createDefaultLanguageMenu(userId, lang));
+      await interaction.followUp({ content: '✅ تم تعيين العربية كلغة افتراضية للبوت', ephemeral: true });
+    }
+    else if (customId === 'set_default_lang_en') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ المالك فقط' : '❌ Owner only', ephemeral: true });
+        return;
+      }
+      db.setDefaultLanguage('en');
+      await interaction.update(ButtonManager.createDefaultLanguageMenu(userId, lang));
+      await interaction.followUp({ content: '✅ English set as default bot language', ephemeral: true });
+    }
+
+    // Log channel select button
+    else if (customId === 'set_log_channel') {
+      if (!db.checkPermission(userId, 'admin')) {
+        await interaction.reply({ content: t(lang, 'permissions.adminOnly'), ephemeral: true });
+        return;
+      }
+      await interaction.update(ButtonManager.createLogChannelMenu(userId, lang));
+    }
 
     // Back buttons
     else if (customId === 'back_main') {
@@ -2348,14 +2387,125 @@ async function moveButtonDirection(interaction, selectedPos, direction, userId, 
 export async function handleSelectMenuInteraction(interaction) {
   const userId = interaction.user.id;
   const user = db.getUser(userId);
-  const lang = user.language || 'en';
+  const lang = user.language || db.getDefaultLanguage();
   const customId = interaction.customId;
 
   try {
+    // Button layout selection
     if (customId === 'layout_select_btn') {
       const selectedValue = interaction.values[0];
       await interaction.update(ButtonManager.createButtonLayoutMenu(userId, lang, selectedValue));
     }
+    
+    // Button swap - first selection
+    else if (customId === 'swap_select_first') {
+      const selectedValue = interaction.values[0];
+      // Store first selection and show second menu
+      await interaction.update(ButtonManager.createButtonSwapMenu(userId, lang, selectedValue));
+    }
+    
+    // Button swap - second selection (perform swap)
+    else if (customId === 'swap_select_second') {
+      const secondPos = interaction.values[0];
+      // Extract first position from embed description
+      const embedDesc = interaction.message.embeds[0]?.description || '';
+      const match = embedDesc.match(/(\d+),(\d+)/);
+      if (match) {
+        const firstPos = `${match[1]},${match[2]}`;
+        const [r1, c1] = firstPos.split(',').map(Number);
+        const [r2, c2] = secondPos.split(',').map(Number);
+        
+        const layout = db.getButtonLayout();
+        
+        // Perform swap
+        const temp = layout.rows[r1][c1];
+        layout.rows[r1][c1] = layout.rows[r2][c2];
+        layout.rows[r2][c2] = temp;
+        
+        db.updateButtonLayout(layout);
+        
+        await interaction.update(ButtonManager.createButtonLayoutMenu(userId, lang));
+        await interaction.followUp({ 
+          content: lang === 'ar' ? '✅ تم تبديل الأزرار بنجاح!' : '✅ Buttons swapped successfully!', 
+          ephemeral: true 
+        });
+      } else {
+        await interaction.reply({ content: lang === 'ar' ? '❌ خطأ' : '❌ Error', ephemeral: true });
+      }
+    }
+    
+    // Admin user select - add
+    else if (customId === 'admin_user_add') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ المالك فقط' : '❌ Owner only', ephemeral: true });
+        return;
+      }
+      const targetUserId = interaction.values[0];
+      
+      if (db.isAdmin(targetUserId)) {
+        await interaction.reply({ 
+          content: lang === 'ar' ? '❌ المستخدم مشرف بالفعل' : '❌ User is already an admin', 
+          ephemeral: true 
+        });
+        return;
+      }
+      
+      db.addAdmin(targetUserId);
+      await interaction.update(ButtonManager.createPermissionsMenu(userId, lang));
+      await interaction.followUp({ 
+        content: lang === 'ar' 
+          ? `✅ تم إضافة <@${targetUserId}> كمشرف` 
+          : `✅ Added <@${targetUserId}> as admin`, 
+        ephemeral: true 
+      });
+    }
+    
+    // Admin user select - remove
+    else if (customId === 'admin_user_remove') {
+      if (!db.isOwner(userId)) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ المالك فقط' : '❌ Owner only', ephemeral: true });
+        return;
+      }
+      const targetUserId = interaction.values[0];
+      
+      if (!db.isAdmin(targetUserId) || db.isOwner(targetUserId)) {
+        await interaction.reply({ 
+          content: lang === 'ar' ? '❌ المستخدم ليس مشرفاً أو لا يمكن إزالته' : '❌ User is not an admin or cannot be removed', 
+          ephemeral: true 
+        });
+        return;
+      }
+      
+      db.removeAdmin(targetUserId);
+      await interaction.update(ButtonManager.createPermissionsMenu(userId, lang));
+      await interaction.followUp({ 
+        content: lang === 'ar' 
+          ? `✅ تم إزالة <@${targetUserId}> من المشرفين` 
+          : `✅ Removed <@${targetUserId}> from admins`, 
+        ephemeral: true 
+      });
+    }
+    
+    // Log channel select
+    else if (customId === 'log_channel_select') {
+      if (!db.checkPermission(userId, 'admin')) {
+        await interaction.reply({ content: lang === 'ar' ? '❌ صلاحية الأدمن فقط' : '❌ Admin only', ephemeral: true });
+        return;
+      }
+      const channelId = interaction.values[0];
+      
+      db.setLogChannel(interaction.guildId, channelId);
+      db.addAllianceLog('set_log_channel', userId, { channelId });
+      
+      await interaction.update(ButtonManager.createLogsMenu(lang));
+      await interaction.followUp({ 
+        content: lang === 'ar' 
+          ? `✅ تم تعيين <#${channelId}> كقناة للسجلات` 
+          : `✅ Set <#${channelId}> as log channel`, 
+        ephemeral: true 
+      });
+    }
+    
   } catch (error) {
     console.error('Error handling select menu:', error);
     await interaction.reply({ 

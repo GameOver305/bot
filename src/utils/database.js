@@ -111,7 +111,8 @@ class Database {
   // User preferences
   getUser(userId) {
     const users = this.read('users');
-    return users[userId] || { language: 'en', notifications: true };
+    const defaultLang = users._defaultLanguage || 'ar';
+    return users[userId] || { language: defaultLang, notifications: true };
   }
 
   setUser(userId, data) {
@@ -614,6 +615,10 @@ class Database {
     return this.write('button_layout', newLayout);
   }
 
+  setButtonLayout(newLayout) {
+    return this.updateButtonLayout(newLayout);
+  }
+
   resetButtonLayout() {
     const defaultLayout = {
       rows: [
@@ -635,6 +640,18 @@ class Database {
   setAboutData(content) {
     const data = this.read('users');
     data._about = { content, updatedAt: new Date().toISOString() };
+    return this.write('users', data);
+  }
+
+  // Default language management
+  getDefaultLanguage() {
+    const data = this.read('users');
+    return data._defaultLanguage || 'ar';
+  }
+
+  setDefaultLanguage(lang) {
+    const data = this.read('users');
+    data._defaultLanguage = lang;
     return this.write('users', data);
   }
 

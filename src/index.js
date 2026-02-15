@@ -6,6 +6,7 @@ import fs from 'fs';
 import { handleButtonInteraction, handleSelectMenuInteraction } from './handlers/interactionHandler.js';
 import { handleModalSubmit } from './handlers/modalHandler.js';
 import { ReminderSystem } from './services/reminderService.js';
+import db from './utils/database.js';
 
 config();
 
@@ -17,6 +18,7 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildMembers,
     GatewayIntentBits.DirectMessages,
   ],
 });
@@ -40,6 +42,21 @@ for (const file of commandFiles) {
 // Initialize reminder system
 let reminderSystem;
 
+// Function to register commands to a guild
+async function registerCommandsToGuild(rest, guildId) {
+  try {
+    await rest.put(
+      Routes.applicationGuildCommands(client.user.id, guildId),
+      { body: commands },
+    );
+    console.log(`✅ تم تسجيل الأوامر في السيرفر: ${guildId}`);
+    return true;
+  } catch (error) {
+    console.error(`❌ خطأ في تسجيل الأوامر للسيرفر ${guildId}:`, error.message);
+    return false;
+  }
+}
+
 // Ready event
 client.on(Events.ClientReady, async () => {
   // Register slash commands after bot is ready
@@ -49,22 +66,26 @@ client.on(Events.ClientReady, async () => {
     // Check if GUILD_ID is set for instant registration
     if (process.env.GUILD_ID && process.env.GUILD_ID !== 'YOUR_GUILD_ID_HERE') {
       console.log('🔄 جاري تسجيل الأوامر في السيرفر (فوري)...');
-      await rest.put(
-        Routes.applicationGuildCommands(client.user.id, process.env.GUILD_ID),
-        { body: commands },
-      );
-      console.log('✅ تم تسجيل الأوامر في السيرفر بنجاح! (فوري)');
-    } else {
-      console.log('🔄 جاري تسجيل الأوامر عالمياً...');
-      // Register globally (available to all servers the bot joins)
-      await rest.put(
-        Routes.applicationCommands(client.user.id),
-        { body: commands },
-      );
-      console.log('✅ تم تسجيل الأوامر عالمياً بنجاح!');
-      console.log('⏱️ ملاحظة: قد يستغرق ظهور الأوامر حتى ساعة واحدة');
-      console.log('💡 لتسجيل فوري: أضف GUILD_ID في ملف .env');
+      await registerCommandsToGuild(rest, process.env.GUILD_ID);
     }
+    
+    // Also register to all guilds in database
+    const guildsData = db.getGuilds();
+    if (guildsData.registered && guildsData.registered.length > 0) {
+      console.log(`🔄 جاري تسجيل الأوامر في ${guildsData.registered.length} سيرفر مسجل...`);
+      for (const guild of guildsData.registered) {
+        await registerCommandsToGuild(rest, guild.id);
+      }
+    }
+    
+    // Register globally as fallback
+    console.log('🔄 جاري تسجيل الأوامر عالمياً...');
+    await rest.put(
+      Routes.applicationCommands(client.user.id),
+      { body: commands },
+    );
+    console.log('✅ تم تسجيل الأوامر عالمياً بنجاح!');
+    
   } catch (error) {
     console.error('❌ خطأ في تسجيل الأوامر:', error);
   }
@@ -84,6 +105,18 @@ client.on(Events.ClientReady, async () => {
   // Start reminder system
   reminderSystem = new ReminderSystem(client);
   reminderSystem.start();
+});
+
+// Auto-register commands when bot joins a new guild
+client.on(Events.GuildCreate, async (guild) => {
+  console.log(`🎉 تمت إضافة البوت إلى سيرفر جديد: ${guild.name} (${guild.id})`);
+  
+  const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+  await registerCommandsToGuild(rest, guild.id);
+  
+  // Auto-add to registered guilds
+  db.addGuild(guild.id, guild.name);
+  console.log(`✅ تم تسجيل السيرفر تلقائياً: ${guild.name}`);
 });
 
 // Handle slash commands
@@ -113,8 +146,8 @@ client.on(Events.InteractionCreate, async interaction => {
   else if (interaction.isButton()) {
     await handleButtonInteraction(interaction);
   }
-  // Handle select menu interactions
-  else if (interaction.isStringSelectMenu()) {
+  // Handle select menu interactions (String, User, Channel)
+  else if (interaction.isStringSelectMenu() || interaction.isUserSelectMenu() || interaction.isChannelSelectMenu()) {
     await handleSelectMenuInteraction(interaction);
   }
   // Handle modal submissions
