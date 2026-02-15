@@ -237,6 +237,10 @@ class Database {
     const envOwnerStr = envOwnerId ? String(envOwnerId).trim() : '';
     const permOwnerStr = permOwnerId ? String(permOwnerId).trim() : '';
     
+    // Debug logging
+    console.log(`[isOwner] userId: "${userIdStr}" | envOwner: "${envOwnerStr}" | permOwner: "${permOwnerStr}"`);
+    console.log(`[isOwner] Match env: ${userIdStr === envOwnerStr} | Match perm: ${userIdStr === permOwnerStr}`);
+    
     return userIdStr === permOwnerStr || userIdStr === envOwnerStr;
   }
 
