@@ -1,0 +1,68 @@
+#!/bin/bash
+
+# Quick deployment script for WispByte
+# سكريبت سريع للنشر على WispByte
+
+clear
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "🚀 WispByte - دليل النشر السريع"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "📋 ملخص الخطوات:"
+echo ""
+echo "════════════════════════════════════════════════"
+echo "1️⃣  إنشاء حساب في WispByte"
+echo "════════════════════════════════════════════════"
+echo "   🔗 https://wispbyte.com"
+echo "   ✅ Sign Up → تأكيد الإيميل"
+echo ""
+
+echo "════════════════════════════════════════════════"
+echo "2️⃣  إنشاء بوت جديد"
+echo "════════════════════════════════════════════════"
+echo "   ✅ Create Bot → Discord Bot"
+echo "   ✅ Language: Node.js 18.x"
+echo ""
+
+echo "════════════════════════════════════════════════"
+echo "3️⃣  تحميل الملفات من GitHub"
+echo "════════════════════════════════════════════════"
+echo "   في Console/Terminal نفذ:"
+echo ""
+echo "   git clone https://github.com/GameOver305/bot.git ."
+echo "   npm install"
+echo ""
+
+echo "════════════════════════════════════════════════"
+echo "4️⃣  إضافة المتغيرات البيئية"
+echo "════════════════════════════════════════════════"
+echo "   في Settings → Environment Variables أضف:"
+echo ""
+echo "   DISCORD_TOKEN=توكن_البوت"
+echo "   OWNER_ID=معرفك"
+echo "   GUILD_ID=معرف_السيرفر"
+echo "   NODE_ENV=production"
+echo ""
+
+echo "════════════════════════════════════════════════"
+echo "5️⃣  Start Command"
+echo "════════════════════════════════════════════════"
+echo "   npm start"
+echo ""
+
+echo "════════════════════════════════════════════════"
+echo "6️⃣  تشغيل البوت"
+echo "════════════════════════════════════════════════"
+echo "   اضغط Start ▶️"
+echo ""
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "📖 للتفاصيل الكاملة راجع:"
+echo "   - WISPBYTE_GUIDE.md"
+echo "   - QUICK_START_GITHUB.md"
+echo ""
+echo "🔗 رابط المستودع:"
+echo "   https://github.com/GameOver305/bot"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
