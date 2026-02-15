@@ -13,7 +13,7 @@ export async function handleButtonInteraction(interaction) {
     // Language switcher
     if (customId === 'lang_switch') {
       const newLang = lang === 'ar' ? 'en' : 'ar';
-      db.setUser(userId, { language: newLang });
+      db.setUserLanguage(userId, newLang);
       await interaction.update(ButtonManager.createMainMenu(newLang));
       return;
     }
@@ -169,18 +169,18 @@ export async function handleButtonInteraction(interaction) {
         await interaction.reply({ content: lang === 'ar' ? '❌ المالك فقط' : '❌ Owner only', ephemeral: true });
         return;
       }
-      db.setDefaultLanguage('ar');
-      await interaction.update(ButtonManager.createDefaultLanguageMenu(userId, lang));
-      await interaction.followUp({ content: '✅ تم تعيين العربية كلغة افتراضية للبوت', ephemeral: true });
+      db.applyDefaultLanguageToAll('ar');
+      await interaction.update(ButtonManager.createDefaultLanguageMenu(userId, 'ar'));
+      await interaction.followUp({ content: '✅ تم تعيين العربية كلغة افتراضية لجميع المستخدمين', ephemeral: true });
     }
     else if (customId === 'set_default_lang_en') {
       if (!db.isOwner(userId)) {
         await interaction.reply({ content: lang === 'ar' ? '❌ المالك فقط' : '❌ Owner only', ephemeral: true });
         return;
       }
-      db.setDefaultLanguage('en');
-      await interaction.update(ButtonManager.createDefaultLanguageMenu(userId, lang));
-      await interaction.followUp({ content: '✅ English set as default bot language', ephemeral: true });
+      db.applyDefaultLanguageToAll('en');
+      await interaction.update(ButtonManager.createDefaultLanguageMenu(userId, 'en'));
+      await interaction.followUp({ content: '✅ English set as default language for all users', ephemeral: true });
     }
 
     // Log channel select button

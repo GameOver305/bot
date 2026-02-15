@@ -21,6 +21,11 @@ class Database {
       button_layout: path.join(this.dataDir, 'button_layout.json')
     };
     
+    // Cache for faster reads
+    this.cache = {};
+    this.cacheTime = {};
+    this.cacheTTL = 5000; // 5 seconds cache
+    
     this.init();
   }
 
@@ -90,8 +95,20 @@ class Database {
 
   read(type) {
     try {
+      // Check cache first
+      const now = Date.now();
+      if (this.cache[type] && this.cacheTime[type] && (now - this.cacheTime[type] < this.cacheTTL)) {
+        return this.cache[type];
+      }
+      
       const data = fs.readFileSync(this.files[type], 'utf8');
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      
+      // Update cache
+      this.cache[type] = parsed;
+      this.cacheTime[type] = now;
+      
+      return parsed;
     } catch (error) {
       console.error(`Error reading ${type}:`, error);
       return null;
@@ -101,23 +118,74 @@ class Database {
   write(type, data) {
     try {
       fs.writeFileSync(this.files[type], JSON.stringify(data, null, 2));
+      // Update cache immediately
+      this.cache[type] = data;
+      this.cacheTime[type] = Date.now();
       return true;
     } catch (error) {
       console.error(`Error writing ${type}:`, error);
       return false;
     }
   }
+  
+  // Clear cache for a type
+  clearCache(type = null) {
+    if (type) {
+      delete this.cache[type];
+      delete this.cacheTime[type];
+    } else {
+      this.cache = {};
+      this.cacheTime = {};
+    }
+  }
 
   // User preferences
   getUser(userId) {
     const users = this.read('users');
-    const defaultLang = users._defaultLanguage || 'ar';
+    const defaultLang = users._defaultLanguage || 'en';
     return users[userId] || { language: defaultLang, notifications: true };
+  }
+  
+  // Get user language (always uses default if not explicitly set)
+  getUserLanguage(userId) {
+    const users = this.read('users');
+    const defaultLang = users._defaultLanguage || 'en';
+    const user = users[userId];
+    // If user hasn't explicitly changed language, use default
+    if (!user || !user.languageSet) {
+      return defaultLang;
+    }
+    return user.language || defaultLang;
   }
 
   setUser(userId, data) {
     const users = this.read('users');
     users[userId] = { ...users[userId], ...data };
+    return this.write('users', users);
+  }
+  
+  // Set user language explicitly
+  setUserLanguage(userId, lang) {
+    const users = this.read('users');
+    if (!users[userId]) {
+      users[userId] = { notifications: true };
+    }
+    users[userId].language = lang;
+    users[userId].languageSet = true; // Mark as explicitly set
+    return this.write('users', users);
+  }
+  
+  // Apply default language to all users who haven't set their own
+  applyDefaultLanguageToAll(lang) {
+    const users = this.read('users');
+    users._defaultLanguage = lang;
+    // Reset languageSet flag for all users so they get new default
+    for (const key in users) {
+      if (key.startsWith('_')) continue; // Skip internal keys
+      if (users[key] && !users[key].languageSet) {
+        users[key].language = lang;
+      }
+    }
     return this.write('users', users);
   }
 
