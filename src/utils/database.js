@@ -229,7 +229,8 @@ class Database {
 
   isOwner(userId) {
     const perms = this.read('permissions');
-    return perms.owner === userId;
+    // Check from permissions file OR from .env OWNER_ID
+    return perms.owner === userId || process.env.OWNER_ID === userId;
   }
 
   isAdmin(userId) {
