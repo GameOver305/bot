@@ -63,28 +63,30 @@ client.on(Events.ClientReady, async () => {
   const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
   
   try {
-    // Check if GUILD_ID is set for instant registration
-    if (process.env.GUILD_ID && process.env.GUILD_ID !== 'YOUR_GUILD_ID_HERE') {
-      console.log('🔄 جاري تسجيل الأوامر في السيرفر (فوري)...');
-      await registerCommandsToGuild(rest, process.env.GUILD_ID);
-    }
+    // Clear old commands first to prevent duplicates
+    console.log('🗑️ جاري مسح الأوامر القديمة...');
     
-    // Also register to all guilds in database
-    const guildsData = db.getGuilds();
-    if (guildsData.registered && guildsData.registered.length > 0) {
-      console.log(`🔄 جاري تسجيل الأوامر في ${guildsData.registered.length} سيرفر مسجل...`);
-      for (const guild of guildsData.registered) {
-        await registerCommandsToGuild(rest, guild.id);
+    // Clear global commands
+    await rest.put(Routes.applicationCommands(client.user.id), { body: [] });
+    
+    // Clear guild-specific commands for all guilds the bot is in
+    for (const [guildId] of client.guilds.cache) {
+      try {
+        await rest.put(Routes.applicationGuildCommands(client.user.id, guildId), { body: [] });
+      } catch (e) {
+        // Ignore errors for guilds we can't access
       }
     }
     
-    // Register globally as fallback
+    console.log('✅ تم مسح الأوامر القديمة');
+    
+    // Register commands globally only (prevents duplicates)
     console.log('🔄 جاري تسجيل الأوامر عالمياً...');
     await rest.put(
       Routes.applicationCommands(client.user.id),
       { body: commands },
     );
-    console.log('✅ تم تسجيل الأوامر عالمياً بنجاح!');
+    console.log('✅ تم تسجيل الأوامر عالمياً بنجاح! (قد يستغرق ظهورها ساعة)');
     
   } catch (error) {
     console.error('❌ خطأ في تسجيل الأوامر:', error);
