@@ -10,7 +10,7 @@ export default {
   async execute(interaction) {
     const userId = interaction.user.id;
     const user = db.getUser(userId);
-    const lang = user.language || 'ar';
+    const lang = user.language || 'en';
 
     try {
       const panel = ButtonManager.createMainMenu(lang);

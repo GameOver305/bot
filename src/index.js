@@ -46,15 +46,25 @@ client.on(Events.ClientReady, async () => {
   const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
   
   try {
-    console.log('🔄 جاري تسجيل الأوامر عالمياً...');
-    
-    // Register globally (available to all servers the bot joins)
-    await rest.put(
-      Routes.applicationCommands(client.user.id),
-      { body: commands },
-    );
-    console.log('✅ تم تسجيل الأوامر عالمياً بنجاح!');
-    console.log('⏱️ ملاحظة: قد يستغرق ظهور الأوامر حتى ساعة واحدة');
+    // Check if GUILD_ID is set for instant registration
+    if (process.env.GUILD_ID && process.env.GUILD_ID !== 'YOUR_GUILD_ID_HERE') {
+      console.log('🔄 جاري تسجيل الأوامر في السيرفر (فوري)...');
+      await rest.put(
+        Routes.applicationGuildCommands(client.user.id, process.env.GUILD_ID),
+        { body: commands },
+      );
+      console.log('✅ تم تسجيل الأوامر في السيرفر بنجاح! (فوري)');
+    } else {
+      console.log('🔄 جاري تسجيل الأوامر عالمياً...');
+      // Register globally (available to all servers the bot joins)
+      await rest.put(
+        Routes.applicationCommands(client.user.id),
+        { body: commands },
+      );
+      console.log('✅ تم تسجيل الأوامر عالمياً بنجاح!');
+      console.log('⏱️ ملاحظة: قد يستغرق ظهور الأوامر حتى ساعة واحدة');
+      console.log('💡 لتسجيل فوري: أضف GUILD_ID في ملف .env');
+    }
   } catch (error) {
     console.error('❌ خطأ في تسجيل الأوامر:', error);
   }

@@ -3,7 +3,7 @@ import { t } from '../utils/translations.js';
 import db from '../utils/database.js';
 
 export class ButtonManager {
-  static createMainMenu(lang = 'ar') {
+  static createMainMenu(lang = 'en') {
     const embed = new EmbedBuilder()
       .setColor('#0099ff')
       .setTitle(t(lang, 'mainMenu.title'))
@@ -21,13 +21,17 @@ export class ButtonManager {
           .setLabel(t(lang, 'mainMenu.alliance'))
           .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
-          .setCustomId('menu_settings')
-          .setLabel(t(lang, 'mainMenu.settings'))
-          .setStyle(ButtonStyle.Secondary)
+          .setCustomId('menu_reminders')
+          .setLabel(lang === 'ar' ? '🔔 التذكيرات' : '🔔 Reminders')
+          .setStyle(ButtonStyle.Primary)
       );
 
     const row2 = new ActionRowBuilder()
       .addComponents(
+        new ButtonBuilder()
+          .setCustomId('menu_settings')
+          .setLabel(t(lang, 'mainMenu.settings'))
+          .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
           .setCustomId('menu_permissions')
           .setLabel(t(lang, 'mainMenu.permissions'))
@@ -35,17 +39,26 @@ export class ButtonManager {
         new ButtonBuilder()
           .setCustomId('menu_stats')
           .setLabel(lang === 'ar' ? '📊 الإحصائيات' : '📊 Statistics')
-          .setStyle(ButtonStyle.Success),
+          .setStyle(ButtonStyle.Success)
+      );
+
+    const row3 = new ActionRowBuilder()
+      .addComponents(
         new ButtonBuilder()
           .setCustomId('menu_help')
           .setLabel(t(lang, 'mainMenu.help'))
-          .setStyle(ButtonStyle.Secondary)
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId('lang_switch')
+          .setLabel(lang === 'ar' ? '🇺🇸 English' : '🇸🇦 العربية')
+          .setEmoji(lang === 'ar' ? '🇺🇸' : '🇸🇦')
+          .setStyle(ButtonStyle.Success)
       );
 
-    return { embeds: [embed], components: [row1, row2] };
+    return { embeds: [embed], components: [row1, row2, row3] };
   }
 
-  static createBookingsMenu(lang = 'ar') {
+  static createBookingsMenu(lang = 'en') {
     const embed = new EmbedBuilder()
       .setColor('#00ff00')
       .setTitle(t(lang, 'bookings.title'))
@@ -79,7 +92,7 @@ export class ButtonManager {
     return { embeds: [embed], components: [row1, row2] };
   }
 
-  static createBookingTypeMenu(type, lang = 'ar') {
+  static createBookingTypeMenu(type, lang = 'en') {
     const bookings = db.getBookings(type);
     
     let description = t(lang, 'bookings.description');
@@ -87,12 +100,16 @@ export class ButtonManager {
     if (bookings.length === 0) {
       description += '\n\n' + t(lang, 'bookings.empty');
     } else {
-      description += '\n\n**📋 الحجوزات الحالية:**\n';
+      description += '\n\n**📋 ' + (lang === 'ar' ? 'الحجوزات الحالية:' : 'Current Bookings:') + '**\n';
       bookings.forEach((booking, index) => {
-        const user = `<@${booking.userId}>`;
-        const start = new Date(booking.startDate).toLocaleDateString('ar-EG');
-        const end = new Date(booking.endDate).toLocaleDateString('ar-EG');
-        description += `\n${index + 1}. ${user} - ${start} إلى ${end}`;
+        const memberName = booking.memberName || booking.userName || 'N/A';
+        const allianceName = booking.allianceName || (lang === 'ar' ? 'غير محدد' : 'Not set');
+        const start = new Date(booking.startDate).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US');
+        const end = new Date(booking.endDate).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US');
+        const duration = booking.duration || Math.ceil((new Date(booking.endDate) - new Date(booking.startDate)) / (1000 * 60 * 60 * 24));
+        
+        description += `\n**${index + 1}.** ${memberName} | ${allianceName}`;
+        description += `\n   ${start} → ${end} (${duration} ${lang === 'ar' ? 'يوم' : 'day'}${duration > 1 ? 's' : ''})`;
       });
     }
 
@@ -129,7 +146,7 @@ export class ButtonManager {
     return { embeds: [embed], components: [row1, row2] };
   }
 
-  static createAllianceMenu(lang = 'ar') {
+  static createAllianceMenu(lang = 'en') {
     const alliance = db.getAlliance();
     
     const embed = new EmbedBuilder()
@@ -142,26 +159,39 @@ export class ButtonManager {
         count: alliance.members.length,
         description: alliance.description || t(lang, 'alliance.notSet')
       }))
+      .setFooter({ 
+        text: lang === 'ar' 
+          ? 'استخدم الأزرار أدناه لإدارة التحالف' 
+          : 'Use the buttons below to manage the alliance' 
+      })
       .setTimestamp();
 
     const row1 = new ActionRowBuilder()
       .addComponents(
         new ButtonBuilder()
           .setCustomId('alliance_info')
-          .setLabel(t(lang, 'alliance.info'))
+          .setLabel(lang === 'ar' ? '📊 معلومات مفصلة' : '📊 Detailed Info')
           .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
           .setCustomId('alliance_members')
           .setLabel(t(lang, 'alliance.members'))
           .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
-          .setCustomId('alliance_manage')
-          .setLabel(lang === 'ar' ? '⚙️ إدارة الأعضاء' : '⚙️ Manage Members')
-          .setStyle(ButtonStyle.Success)
+          .setCustomId('alliance_ranks')
+          .setLabel(lang === 'ar' ? '⭐ توزيع الرتب' : '⭐ Rank Distribution')
+          .setStyle(ButtonStyle.Secondary)
       );
-
+    
     const row2 = new ActionRowBuilder()
       .addComponents(
+        new ButtonBuilder()
+          .setCustomId('alliance_manage_menu')
+          .setLabel(lang === 'ar' ? '⚙️ إدارة التحالف' : '⚙️ Manage Alliance')
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId('alliance_commands')
+          .setLabel(lang === 'ar' ? '📜 قائمة الأوامر' : '📜 Commands List')
+          .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
           .setCustomId('back_main')
           .setLabel(t(lang, 'alliance.back'))
@@ -171,7 +201,7 @@ export class ButtonManager {
     return { embeds: [embed], components: [row1, row2] };
   }
 
-  static createSettingsMenu(userId, lang = 'ar') {
+  static createSettingsMenu(userId, lang = 'en') {
     const user = db.getUser(userId);
     
     const embed = new EmbedBuilder()
@@ -211,7 +241,7 @@ export class ButtonManager {
     return { embeds: [embed], components: [row1, row2] };
   }
 
-  static createPermissionsMenu(lang = 'ar') {
+  static createPermissionsMenu(lang = 'en') {
     const perms = db.getPermissions();
     
     let adminList = 'لا يوجد مشرفين';
@@ -248,7 +278,7 @@ export class ButtonManager {
     return { embeds: [embed], components: [row1, row2] };
   }
 
-  static createStatsMenu(lang = 'ar') {
+  static createStatsMenu(lang = 'en') {
     const allBookings = db.getBookings();
     const alliance = db.getAlliance();
     const perms = db.getPermissions();
@@ -280,7 +310,7 @@ export class ButtonManager {
     return { embeds: [embed], components: [row] };
   }
 
-  static createHelpMenu(lang = 'ar') {
+  static createHelpMenu(lang = 'en') {
     const embed = new EmbedBuilder()
       .setColor('#9b59b6')
       .setTitle(lang === 'ar' ? '❓ قائمة المساعدة' : '❓ Help Menu')
@@ -329,5 +359,166 @@ export class ButtonManager {
       );
 
     return { embeds: [embed], components: [row] };
+  }
+
+  // Reminders Menu
+  static createRemindersMenu(userId, lang = 'en') {
+    const reminders = db.getReminders(userId);
+    
+    const embed = new EmbedBuilder()
+      .setColor('#ff6b6b')
+      .setTitle(lang === 'ar' ? '🔔 نظام التذكيرات' : '🔔 Reminders System')
+      .setDescription(lang === 'ar' 
+        ? 'إدارة جميع تذكيراتك الشخصية'
+        : 'Manage all your personal reminders')
+      .setTimestamp();
+
+    if (reminders.length === 0) {
+      embed.addFields({
+        name: lang === 'ar' ? '📝 التذكيرات' : '📝 Reminders',
+        value: lang === 'ar' ? 'لا توجد تذكيرات حالياً' : 'No reminders currently',
+        inline: false
+      });
+    } else {
+      const remindersList = reminders.map((r, i) => {
+        const date = new Date(r.time).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-US');
+        return `**${i + 1}.** ${r.message}\n   ⏰ ${date}`;
+      }).join('\n\n');
+
+      embed.addFields({
+        name: lang === 'ar' ? `📝 التذكيرات (${reminders.length})` : `📝 Reminders (${reminders.length})`,
+        value: remindersList,
+        inline: false
+      });
+    }
+
+    const row1 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('reminder_add')
+          .setLabel(lang === 'ar' ? '➕ إضافة تذكير' : '➕ Add Reminder')
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId('reminder_view')
+          .setLabel(lang === 'ar' ? '📋 عرض الكل' : '📋 View All')
+          .setStyle(ButtonStyle.Primary)
+      );
+
+    const row2 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('reminder_delete')
+          .setLabel(lang === 'ar' ? '🗑️ حذف تذكير' : '🗑️ Delete Reminder')
+          .setStyle(ButtonStyle.Danger)
+          .setDisabled(reminders.length === 0),
+        new ButtonBuilder()
+          .setCustomId('back_main')
+          .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+    return { embeds: [embed], components: [row1, row2] };
+  }
+
+  // Alliance Management Menu
+  static createAllianceManageMenu(userId, lang = 'en') {
+    const hasPermission = db.hasAlliancePermission(userId) || db.isAdmin(userId);
+    const isR5OrAdmin = (db.getAlliance().leader === userId) || db.isAdmin(userId);
+
+    const embed = new EmbedBuilder()
+      .setColor('#9b59b6')
+      .setTitle(lang === 'ar' ? '⚙️ إدارة التحالف' : '⚙️ Alliance Management')
+      .setDescription(lang === 'ar'
+        ? 'إدارة كاملة لأعضاء ومعلومات التحالف'
+        : 'Complete management of alliance members and information')
+      .setTimestamp();
+
+    const row1 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('alliance_add_member')
+          .setLabel(lang === 'ar' ? '➕ إضافة عضو' : '➕ Add Member')
+          .setStyle(ButtonStyle.Success)
+          .setDisabled(!hasPermission),
+        new ButtonBuilder()
+          .setCustomId('alliance_remove_member')
+          .setLabel(lang === 'ar' ? '➖ إزالة عضو' : '➖ Remove Member')
+          .setStyle(ButtonStyle.Danger)
+          .setDisabled(!hasPermission),
+        new ButtonBuilder()
+          .setCustomId('alliance_change_rank')
+          .setLabel(lang === 'ar' ? '⭐ تغيير رتبة' : '⭐ Change Rank')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!hasPermission)
+      );
+
+    const row2 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('alliance_set_info')
+          .setLabel(lang === 'ar' ? '📝 تعديل المعلومات' : '📝 Edit Info')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(!isR5OrAdmin),
+        new ButtonBuilder()
+          .setCustomId('alliance_set_leader')
+          .setLabel(lang === 'ar' ? '👑 تعيين قائد' : '👑 Set Leader')
+          .setStyle(ButtonStyle.Danger)
+          .setDisabled(!db.isAdmin(userId)),
+        new ButtonBuilder()
+          .setCustomId('back_alliance')
+          .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+    return { embeds: [embed], components: [row1, row2] };
+  }
+
+  // Admin Management Menu
+  static createAdminMenu(userId, lang = 'en') {
+    const perms = db.getPermissions();
+    
+    let adminList = lang === 'ar' ? 'لا يوجد مشرفين' : 'No admins';
+    if (perms.admins.length > 0) {
+      adminList = perms.admins.map((id, i) => `${i + 1}. <@${id}>`).join('\n');
+    }
+
+    const embed = new EmbedBuilder()
+      .setColor('#e74c3c')
+      .setTitle(lang === 'ar' ? '👮 إدارة المشرفين' : '👮 Admin Management')
+      .setDescription(lang === 'ar'
+        ? 'إدارة صلاحيات المشرفين والمالك'
+        : 'Manage admin permissions and owner')
+      .addFields(
+        { name: '👑 ' + (lang === 'ar' ? 'المالك' : 'Owner'), value: perms.owner ? `<@${perms.owner}>` : (lang === 'ar' ? 'غير محدد' : 'Not set'), inline: false },
+        { name: '👮 ' + (lang === 'ar' ? 'المشرفين' : 'Admins'), value: adminList, inline: false }
+      )
+      .setTimestamp();
+
+    const row1 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('admin_add')
+          .setLabel(lang === 'ar' ? '➕ إضافة مشرف' : '➕ Add Admin')
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId('admin_remove')
+          .setLabel(lang === 'ar' ? '➖ حذف مشرف' : '➖ Remove Admin')
+          .setStyle(ButtonStyle.Danger)
+          .setDisabled(perms.admins.length === 0),
+        new ButtonBuilder()
+          .setCustomId('admin_set_owner')
+          .setLabel(lang === 'ar' ? '👑 تعيين مالك' : '👑 Set Owner')
+          .setStyle(ButtonStyle.Primary)
+      );
+
+    const row2 = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('back_permissions')
+          .setLabel(lang === 'ar' ? '◀️ رجوع' : '◀️ Back')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+    return { embeds: [embed], components: [row1, row2] };
   }
 }

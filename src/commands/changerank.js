@@ -23,11 +23,15 @@ export default {
 
   async execute(interaction) {
     const userId = interaction.user.id;
+    const user = db.getUser(userId);
+    const lang = user.language || 'en';
     
     // Check permissions
     if (!db.hasAlliancePermission(userId) && !db.isAdmin(userId)) {
       await interaction.reply({ 
-        content: '❌ ليس لديك صلاحية لتنفيذ هذا الأمر (R4, R5 فقط)', 
+        content: lang === 'ar'
+          ? '❌ ليس لديك صلاحية لتنفيذ هذا الأمر (R4, R5 فقط)'
+          : '❌ You don\'t have permission to execute this command (R4, R5 only)', 
         ephemeral: true 
       });
       return;
@@ -42,7 +46,9 @@ export default {
     
     if (!member) {
       await interaction.reply({ 
-        content: `❌ <@${targetUser.id}> ليس عضواً في التحالف`, 
+        content: lang === 'ar'
+          ? `❌ <@${targetUser.id}> ليس عضواً في التحالف`
+          : `❌ <@${targetUser.id}> is not a member of the alliance`, 
         ephemeral: true 
       });
       return;
@@ -54,7 +60,9 @@ export default {
     db.updateMemberRank(targetUser.id, newRank);
 
     await interaction.reply({ 
-      content: `✅ تم تغيير رتبة <@${targetUser.id}> من **${oldRank}** إلى **${newRank}**`, 
+      content: lang === 'ar'
+        ? `✅ تم تغيير رتبة <@${targetUser.id}> من **${oldRank}** إلى **${newRank}**`
+        : `✅ <@${targetUser.id}>\'s rank has been changed from **${oldRank}** to **${newRank}**`, 
       ephemeral: false 
     });
   },
