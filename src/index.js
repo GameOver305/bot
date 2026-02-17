@@ -1,37 +1,5 @@
-// ============ مزامنة أعضاء التحالف تلقائياً عند تفعيل autoSync ============
-client.on(Events.GuildMemberAdd, async (member) => {
-  try {
-    const guildId = member.guild.id;
-    const guildAlliance = db.getGuildAlliance(guildId);
-    if (guildAlliance.autoSync) {
-      // إضافة العضو إذا لم يكن موجوداً
-      const exists = guildAlliance.members.some(m => m.id === member.id);
-      if (!exists) {
-        db.autoAddGuildMember(guildId, member.id, member.displayName || member.user.username);
-      }
-    }
-  } catch (e) {
-    console.error('خطأ في مزامنة عضو جديد:', e);
-  }
-});
 
-client.on(Events.GuildMemberRemove, async (member) => {
-  try {
-    const guildId = member.guild.id;
-    const guildAlliance = db.getGuildAlliance(guildId);
-    if (guildAlliance.autoSync) {
-      // حذف العضو من التحالف إذا كان autoSync مفعّل
-      const alliance = db.getGuildAlliance(guildId);
-      const beforeCount = alliance.members.length;
-      alliance.members = alliance.members.filter(m => m.id !== member.id);
-      if (alliance.members.length !== beforeCount) {
-        db.saveGuildAlliance(guildId, alliance);
-      }
-    }
-  } catch (e) {
-    console.error('خطأ في إزالة عضو من التحالف:', e);
-  }
-});
+
 import { Client, GatewayIntentBits, Collection, REST, Routes, Events } from 'discord.js';
 import { config } from 'dotenv';
 import { fileURLToPath } from 'url';

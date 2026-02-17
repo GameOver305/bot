@@ -515,17 +515,7 @@ export class ButtonManager {
           inline: false
         },
         {
-        // إضافة زر إدارة المالك فقط إذا كان المستخدم مالكاً
-        if (isOwner) {
-          const ownerRow = new ActionRowBuilder()
-            .addComponents(
-              new ButtonBuilder()
-                .setCustomId('menu_owner_admin')
-                .setLabel(lang === 'ar' ? '👑 إدارة المالك' : '👑 Owner Admin')
-                .setStyle(ButtonStyle.Danger)
-            );
-          components.splice(2, 0, ownerRow); // Insert before navigation row
-        }
+          name: lang === 'ar' ? '⚙️ الإعدادات' : '⚙️ Settings',
           value: lang === 'ar'
             ? '• تغيير اللغة (عربي/إنجليزي)\n• تفعيل/تعطيل التذكيرات'
             : '• Change language\n• Toggle notifications',
